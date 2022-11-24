@@ -1320,6 +1320,13 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 				c,
 			)
+			dbCount, err := models.Serieses().Count(ctx, db)
+			require.NoError(err)
+			t.Logf(
+				"table %q count: %d",
+				config.Config.Elasticsearch.Index.Serieses,
+				dbCount,
+			)
 			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},

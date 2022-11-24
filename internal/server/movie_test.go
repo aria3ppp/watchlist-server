@@ -1288,6 +1288,13 @@ func TestHandleMoviesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 				c,
 			)
+			dbCount, err := models.Films().Count(ctx, db)
+			require.NoError(err)
+			t.Logf(
+				"table %q count: %d",
+				config.Config.Elasticsearch.Index.Movies,
+				dbCount,
+			)
 			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
