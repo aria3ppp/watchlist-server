@@ -1327,6 +1327,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 				dbCount,
 			)
+			t.Logf("len(seriesCreateReqs) = %d", len(seriesCreateReqs))
 			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},
