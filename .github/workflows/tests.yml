@@ -47,8 +47,8 @@ jobs:
         ELASTICSEARCH_INDEX_MOVIES="posts"
         EOF
         
-    - name: Start dependant services
-      run: make dependencies-up
+    - name: Start services
+      run: make services-up
     
     - name: Sync sqlboiler config file with passed envs
       run: make sync-sqlboiler-conf

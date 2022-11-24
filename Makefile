@@ -13,8 +13,8 @@ $(if $(wildcard $(ENVFILE)), \
 MIGRATE_DSN ?= "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
 MIGRATE := docker run --rm -v $(shell pwd)/migrations:/migrations --user "$(shell id -u):$(shell id -g)" --network host migrate/migrate -path=/migrations -database "$(MIGRATE_DSN)"
 
-DOCKER_COMPOSE_DEPENDENCIES := docker compose -f docker-compose.dependencies.yml
-DOCKER_COMPOSE_SERVER := $(DOCKER_COMPOSE_DEPENDENCIES) -f docker-compose.server.yml
+DOCKER_COMPOSE_SERVICES := docker compose -f docker-compose.services.yml
+DOCKER_COMPOSE_SERVER := $(DOCKER_COMPOSE_SERVICES) -f docker-compose.server.yml
 
 .PHONY: default
 default: help
@@ -24,13 +24,13 @@ default: help
 help: ## help information about make commands
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-.PHONY: dependencies-up
-dependencies-up: ## create and start dependency services
-	$(DOCKER_COMPOSE_DEPENDENCIES) up -d
+.PHONY: services-up
+services-up: ## create and start services
+	$(DOCKER_COMPOSE_SERVICES) up -d
 
-.PHONY: dependencies-down
-dependencies-down: ## stop and remove dependency services
-	$(DOCKER_COMPOSE_DEPENDENCIES) down
+.PHONY: services-down
+services-down: ## stop and remove services
+	$(DOCKER_COMPOSE_SERVICES) down
 
 .PHONY: server-up
 server-up: ## create and start server
