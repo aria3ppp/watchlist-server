@@ -1315,7 +1315,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 			require.NoError(err)
 			return c == len(seriesCreateReqs)
 		},
-		120*time.Second,
+		10*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")
