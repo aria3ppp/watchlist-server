@@ -44,7 +44,7 @@ jobs:
         # environment variable used by elasticsearch client
         ELASTICSEARCH_URL="http://localhost:9200"
         ELASTICSEARCH_INDEX_SERIESES=serieses
-        ELASTICSEARCH_INDEX_MOVIES="posts"
+        ELASTICSEARCH_INDEX_MOVIES=movies
         EOF
         
     - name: Start services
