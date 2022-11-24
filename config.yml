@@ -8,8 +8,8 @@ server:
     production: false
     logfile: ""
     port: 8080
-    handler_timeout_in_seconds: 2
-    shutdown_timeout_in_seconds: 3
+    handler_timeout_in_seconds: 10
+    shutdown_timeout_in_seconds: 11
 
 token:
     signing_key: ""
