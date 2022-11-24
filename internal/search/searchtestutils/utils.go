@@ -140,3 +140,14 @@ func (e *ElasticSearch) deleteMe() {
 	)
 }
 */
+
+func PingCluster(client *elasticsearch.Client) error {
+	resp, err := client.Ping()
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return responseError(resp)
+	}
+	return nil
+}

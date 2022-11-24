@@ -1328,6 +1328,10 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				dbCount,
 			)
 			t.Logf("len(seriesCreateReqs) = %d", len(seriesCreateReqs))
+			require.NoError(
+				searchtestutils.PingCluster(esClient),
+				"cluster error",
+			)
 			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},

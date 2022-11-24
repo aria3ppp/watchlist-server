@@ -1296,6 +1296,10 @@ func TestHandleMoviesSearch(t *testing.T) {
 				dbCount,
 			)
 			t.Logf("len(movieCreateReqs) = %d", len(movieCreateReqs))
+			require.NoError(
+				searchtestutils.PingCluster(esClient),
+				"cluster error",
+			)
 			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
