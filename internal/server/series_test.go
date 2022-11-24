@@ -1313,9 +1313,10 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 			)
 			require.NoError(err)
+			require.LessOrEqual(c, len(seriesCreateReqs))
 			return c == len(seriesCreateReqs)
 		},
-		120*time.Second,
+		10*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")

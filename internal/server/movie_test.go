@@ -1281,9 +1281,10 @@ func TestHandleMoviesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 			)
 			require.NoError(err)
+			require.LessOrEqual(c, len(movieCreateReqs))
 			return c == len(movieCreateReqs)
 		},
-		120*time.Second,
+		10*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")
