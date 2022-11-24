@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"net/http"
+	"os/exec"
 	"strconv"
 	"testing"
 	"time"
@@ -1300,6 +1301,9 @@ func TestHandleMoviesSearch(t *testing.T) {
 				searchtestutils.PingCluster(esClient),
 				"cluster error",
 			)
+			out, err := exec.Command("curl", "-s", "-I", "http://localhost:9600").
+				Output()
+			t.Logf("logstash healthcheck: %s, error: %s", out, err)
 			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
