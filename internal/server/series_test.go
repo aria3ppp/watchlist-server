@@ -1313,7 +1313,10 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 			)
 			require.NoError(err)
+			// TODO: delete
 			require.LessOrEqual(c, len(seriesCreateReqs))
+			t.Logf("count: %d", c)
+			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},
 		10*time.Second,

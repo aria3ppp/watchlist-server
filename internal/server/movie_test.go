@@ -1281,7 +1281,10 @@ func TestHandleMoviesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 			)
 			require.NoError(err)
+			// TODO: delete
 			require.LessOrEqual(c, len(movieCreateReqs))
+			t.Logf("count: %d", c)
+			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
 		10*time.Second,
