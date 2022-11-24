@@ -1295,6 +1295,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 				dbCount,
 			)
+			t.Logf("len(movieCreateReqs) = %d", len(movieCreateReqs))
 			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
