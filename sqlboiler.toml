@@ -1,0 +1,26 @@
+wipe = true
+tag-ignore = ["hashed_password"]
+
+[aliases.tables.serieses]
+up_plural     = "Serieses"
+up_singular   = "Series"
+down_plural   = "serieses"
+down_singular = "series"
+
+[aliases.tables.serieses.relationships.serieses_contributed_by_fk_users]
+local = "ContributedSerieses"
+foreign = "ContributingUser"
+
+[aliases.tables.films.relationships.films_contributed_by_fk_users]
+local = "ContributedFilms"
+foreign = "ContributingUser"
+
+[psql]
+blacklist = ["schema_migrations"]
+
+dbname = "watch-list-server"
+host   = "localhost"
+port = 5432
+user = "watch-list-server"
+pass = "watch-list-server"
+sslmode = "disable"

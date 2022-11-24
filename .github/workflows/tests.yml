@@ -1,0 +1,57 @@
+# This workflow will test a golang project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+
+name: Tests
+
+on: [push, pull_request]
+
+env:
+  pg_port: 5432
+  pg_user: username
+  pg_pass: password
+  pg_db: db
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19
+        
+    - name: fetch packages
+      run: |
+        go mod download
+        go mod verify
+    
+    - name: Set envs
+      run: |
+        cat << EOF > .env
+        # server envs
+        SERVER_LOGFILE="log.txt"
+        SERVER_PORT=8080
+        TOKEN_SIGNING_KEY="token_signing_key"
+        # postgresql database envs
+        POSTGRES_USER="${{env.pg_user}}"
+        POSTGRES_PASSWORD="${{env.pg_pass}}"
+        POSTGRES_PORT="${{env.pg_port}}"
+        POSTGRES_DB="${{env.pg_db}}"
+        # environment variable used by elasticsearch client
+        ELASTICSEARCH_URL="http://localhost:9200"
+        ELASTICSEARCH_INDEX_SERIESES=serieses
+        ELASTICSEARCH_INDEX_MOVIES="posts"
+        EOF
+        
+    - name: Start dependant services
+      run: make dependencies-up
+    
+    - name: Sync sqlboiler config file with passed envs
+      run: make sync-sqlboiler-conf
+
+    - name: Test
+      run: make test-all

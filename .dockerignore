@@ -1,0 +1,13 @@
+/.git/
+/.gitignore
+
+/.vscode/
+
+/coverage.out
+/coverage-all.out
+
+/.env
+
+/ROADMAP.md
+
+/server
