@@ -69,7 +69,7 @@ func DeleteIndex(client *elasticsearch.Client, index ...string) error {
 func WaitUntil(
 	until func() bool,
 	timeout, cooldown time.Duration,
-) (timedOut bool) {
+) (timeoutExceed bool) {
 	t := time.After(timeout)
 	for {
 		select {

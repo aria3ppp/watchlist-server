@@ -174,7 +174,7 @@ func TestSearchSerieses(t *testing.T) {
 	}
 
 	// wait until all documents are indexed
-	timedOut := searchtestutils.WaitUntil(
+	timeoutExceed := searchtestutils.WaitUntil(
 		func() bool {
 			c, err := searchtestutils.CountIndex(
 				esClient,
@@ -186,7 +186,7 @@ func TestSearchSerieses(t *testing.T) {
 		time.Second*10,
 		time.Millisecond*200,
 	)
-	require.False(timedOut)
+	require.False(timeoutExceed, "timeout exceeded")
 
 	// search query
 	gotSerieses, total, err = s.SearchSerieses(
@@ -369,7 +369,7 @@ func TestSearchMovies(t *testing.T) {
 	}
 
 	// wait until all documents are indexed
-	timedOut := searchtestutils.WaitUntil(
+	timeoutExceed := searchtestutils.WaitUntil(
 		func() bool {
 			c, err := searchtestutils.CountIndex(
 				esClient,
@@ -381,7 +381,7 @@ func TestSearchMovies(t *testing.T) {
 		time.Second*10,
 		time.Millisecond*200,
 	)
-	require.False(timedOut)
+	require.False(timeoutExceed, "timeout exceed")
 
 	// search query
 	gotMovies, total, err = s.SearchMovies(

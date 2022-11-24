@@ -1274,7 +1274,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 	}
 
 	// wait until movie got index
-	timedOut := searchtestutils.WaitUntil(
+	timeoutExceed := searchtestutils.WaitUntil(
 		func() bool {
 			c, err := searchtestutils.CountIndex(
 				esClient,
@@ -1286,7 +1286,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 		10*time.Second,
 		time.Second,
 	)
-	require.False(timedOut)
+	require.False(timeoutExceed, "timeout exceed")
 
 	gotMovies, _, err := appInstance.MoviesGetAll(
 		ctx,

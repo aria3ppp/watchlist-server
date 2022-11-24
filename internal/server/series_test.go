@@ -1306,7 +1306,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 	}
 
 	// wait until series got index
-	timedOut := searchtestutils.WaitUntil(
+	timeoutExceed := searchtestutils.WaitUntil(
 		func() bool {
 			c, err := searchtestutils.CountIndex(
 				esClient,
@@ -1318,7 +1318,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 		10*time.Second,
 		time.Second,
 	)
-	require.False(timedOut)
+	require.False(timeoutExceed, "timeout exceed")
 
 	gotSerieses, _, err := appInstance.SeriesesGetAll(
 		ctx,
