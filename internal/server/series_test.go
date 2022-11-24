@@ -1315,11 +1315,15 @@ func TestHandleSeriesesSearch(t *testing.T) {
 			require.NoError(err)
 			// TODO: delete
 			require.LessOrEqual(c, len(seriesCreateReqs))
-			t.Logf("count: %d", c)
+			t.Logf(
+				"index %q count: %d",
+				config.Config.Elasticsearch.Index.Serieses,
+				c,
+			)
 			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},
-		10*time.Second,
+		120*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")

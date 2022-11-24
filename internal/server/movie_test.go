@@ -1283,11 +1283,15 @@ func TestHandleMoviesSearch(t *testing.T) {
 			require.NoError(err)
 			// TODO: delete
 			require.LessOrEqual(c, len(movieCreateReqs))
-			t.Logf("count: %d", c)
+			t.Logf(
+				"index %q count: %d",
+				config.Config.Elasticsearch.Index.Movies,
+				c,
+			)
 			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
-		10*time.Second,
+		120*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")
