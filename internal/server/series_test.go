@@ -1337,10 +1337,13 @@ func TestHandleSeriesesSearch(t *testing.T) {
 			out, err := exec.Command("curl", "-s", "-I", "http://localhost:9600").
 				Output()
 			t.Logf("logstash healthcheck: %s, error: %s", out, err)
+			out, err = exec.Command("curl", "-s", "-I", "http://localhost:9200").
+				Output()
+			t.Logf("elasticsearch healthcheck: %s, error: %s", out, err)
 			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},
-		200*time.Second,
+		400*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")
