@@ -69,10 +69,18 @@ test-unit: ## run unit tests
 	go test -covermode=count -coverprofile=coverage.out $(shell go list ./... | grep -v /models)
 
 .PHONY: test-models
-test-models: ## run models tests
+test-models: sync-sqlboiler-conf ## run models tests
 	@make migrate
 	go test -covermode=count -coverprofile=coverage.out  ./internal/models/...
 	@make migrate-drop
+
+.PHONY: sync-sqlboiler-conf
+sync-sqlboiler-conf: ## sync sqlboiler config file with passed envs
+	@echo "Syncing sqlboiler config file with passed envs..."
+	@sed -r -i 's/[[:space:]]*dbname[[:space:]]*=[[:space:]]*(.+)/dbname = "$(POSTGRES_DB)"/' sqlboiler.toml
+	@sed -r -i 's/[[:space:]]*port[[:space:]]*=[[:space:]]*(.+)/port = $(POSTGRES_PORT)/' sqlboiler.toml
+	@sed -r -i 's/[[:space:]]*user[[:space:]]*=[[:space:]]*(.+)/user = "$(POSTGRES_USER)"/' sqlboiler.toml
+	@sed -r -i 's/[[:space:]]*pass[[:space:]]*=[[:space:]]*(.+)/pass = "$(POSTGRES_PASSWORD)"/' sqlboiler.toml
 
 .PHONY: test-repo-integration
 test-repo-integration: ## run repository integration tests

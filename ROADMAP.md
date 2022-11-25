@@ -1,4 +1,4 @@
-# Watch-List Application
+# WatchList Application
 
 ### Server side:
 

@@ -18,9 +18,9 @@ foreign = "ContributingUser"
 [psql]
 blacklist = ["schema_migrations"]
 
-dbname = "watch-list-server"
+dbname = "watchlist-db"
 host   = "localhost"
 port = 5432
-user = "watch-list-server"
-pass = "watch-list-server"
+user = "watchlist-user"
+pass = "watchlist-password"
 sslmode = "disable"
