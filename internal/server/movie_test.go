@@ -1282,7 +1282,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 			)
 			require.NoError(err)
-			// TODO: delete
+			// TODO: delete ////////////////////////////////////////////////////
 			require.LessOrEqual(c, len(movieCreateReqs))
 			t.Logf(
 				"index %q count: %d",

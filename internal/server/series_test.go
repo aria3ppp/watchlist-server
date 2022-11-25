@@ -1314,7 +1314,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 			)
 			require.NoError(err)
-			// TODO: delete
+			// TODO: delete ////////////////////////////////////////////////////
 			require.LessOrEqual(c, len(seriesCreateReqs))
 			t.Logf(
 				"index %q count: %d",

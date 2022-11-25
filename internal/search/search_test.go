@@ -3,6 +3,7 @@ package search_test
 import (
 	"context"
 	"encoding/json"
+	"os/exec"
 	"sort"
 	"strconv"
 	"testing"
@@ -181,6 +182,23 @@ func TestSearchSerieses(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 			)
 			require.NoError(err)
+			// TODO: delete ////////////////////////////////////////////////////
+			require.LessOrEqual(c, len(serieses))
+			t.Logf(
+				"index %q count: %d",
+				config.Config.Elasticsearch.Index.Serieses,
+				c,
+			)
+			t.Logf("len(serieses) = %d", len(serieses))
+			require.NoError(
+				searchtestutils.PingCluster(esClient),
+				"cluster error",
+			)
+			// TODO: on delete remove ports mapping in docker compose file
+			out, err := exec.Command("curl", "-s", "-I", "http://localhost:9600").
+				Output()
+			t.Logf("logstash healthcheck: %s, error: %s", out, err)
+			////////////////////////////////////////////////////////////////////
 			return c == len(serieses)
 		},
 		time.Second*10,
@@ -376,6 +394,23 @@ func TestSearchMovies(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 			)
 			require.NoError(err)
+			// TODO: delete ////////////////////////////////////////////////////
+			require.LessOrEqual(c, len(movies))
+			t.Logf(
+				"index %q count: %d",
+				config.Config.Elasticsearch.Index.Movies,
+				c,
+			)
+			t.Logf("len(movies) = %d", len(movies))
+			require.NoError(
+				searchtestutils.PingCluster(esClient),
+				"cluster error",
+			)
+			// TODO: on delete remove ports mapping in docker compose file
+			out, err := exec.Command("curl", "-s", "-I", "http://localhost:9600").
+				Output()
+			t.Logf("logstash healthcheck: %s, error: %s", out, err)
+			////////////////////////////////////////////////////////////////////
 			return c == len(movies)
 		},
 		time.Second*10,
