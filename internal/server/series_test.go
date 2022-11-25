@@ -3,7 +3,6 @@ package server_test
 import (
 	"context"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"testing"
 	"time"
@@ -1314,36 +1313,9 @@ func TestHandleSeriesesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Serieses,
 			)
 			require.NoError(err)
-			// TODO: delete ////////////////////////////////////////////////////
-			require.LessOrEqual(c, len(seriesCreateReqs))
-			t.Logf(
-				"index %q count: %d",
-				config.Config.Elasticsearch.Index.Serieses,
-				c,
-			)
-			dbCount, err := models.Serieses().Count(ctx, db)
-			require.NoError(err)
-			t.Logf(
-				"table %q count: %d",
-				config.Config.Elasticsearch.Index.Serieses,
-				dbCount,
-			)
-			t.Logf("len(seriesCreateReqs) = %d", len(seriesCreateReqs))
-			require.NoError(
-				searchtestutils.PingCluster(esClient),
-				"cluster error",
-			)
-			// TODO: on delete remove ports mapping in docker compose file
-			out, err := exec.Command("curl", "-s", "-I", "http://localhost:9600").
-				Output()
-			t.Logf("logstash healthcheck: %s, error: %s", out, err)
-			out, err = exec.Command("curl", "-s", "-I", "http://localhost:9200").
-				Output()
-			t.Logf("elasticsearch healthcheck: %s, error: %s", out, err)
-			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},
-		400*time.Second,
+		10*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")

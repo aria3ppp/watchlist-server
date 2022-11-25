@@ -3,7 +3,6 @@ package server_test
 import (
 	"context"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"testing"
 	"time"
@@ -1282,36 +1281,9 @@ func TestHandleMoviesSearch(t *testing.T) {
 				config.Config.Elasticsearch.Index.Movies,
 			)
 			require.NoError(err)
-			// TODO: delete ////////////////////////////////////////////////////
-			require.LessOrEqual(c, len(movieCreateReqs))
-			t.Logf(
-				"index %q count: %d",
-				config.Config.Elasticsearch.Index.Movies,
-				c,
-			)
-			dbCount, err := models.Films().Count(ctx, db)
-			require.NoError(err)
-			t.Logf(
-				"table %q count: %d",
-				config.Config.Elasticsearch.Index.Movies,
-				dbCount,
-			)
-			t.Logf("len(movieCreateReqs) = %d", len(movieCreateReqs))
-			require.NoError(
-				searchtestutils.PingCluster(esClient),
-				"cluster error",
-			)
-			// TODO: on delete remove ports mapping in docker compose file
-			out, err := exec.Command("curl", "-s", "-I", "http://localhost:9600").
-				Output()
-			t.Logf("logstash healthcheck: %s, error: %s", out, err)
-			out, err = exec.Command("curl", "-s", "-I", "http://localhost:9200").
-				Output()
-			t.Logf("elasticsearch healthcheck: %s, error: %s", out, err)
-			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
-		400*time.Second,
+		10*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")
