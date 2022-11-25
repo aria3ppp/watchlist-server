@@ -88,7 +88,7 @@ test-repo-integration: ## run repository integration tests
 
 .PHONY: test-search-integration
 test-search-integration: ## run search integration tests
-	env TEST_ES_INTEGRATION=V go test -covermode=count -coverprofile=coverage.out ./internal/search/ -v
+	env TEST_ES_INTEGRATION=V go test -covermode=count -coverprofile=coverage.out ./internal/search/
 
 .PHONY: test-e2e
 test-e2e: ## run end-to-end tests
