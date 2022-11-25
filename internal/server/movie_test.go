@@ -1308,7 +1308,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 			////////////////////////////////////////////////////////////////////
 			return c == len(movieCreateReqs)
 		},
-		120*time.Second,
+		200*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")

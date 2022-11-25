@@ -24,6 +24,10 @@ default: help
 help: ## help information about make commands
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: services-ps
+services-ps: ## list services containers
+	$(DOCKER_COMPOSE_SERVICES) ps
+
 .PHONY: services-up
 services-up: ## create and start services
 	$(DOCKER_COMPOSE_SERVICES) up -d
@@ -31,6 +35,10 @@ services-up: ## create and start services
 .PHONY: services-down
 services-down: ## stop and remove services
 	$(DOCKER_COMPOSE_SERVICES) down
+
+.PHONY: server-ps
+server-ps: ## list server containers
+	$(DOCKER_COMPOSE_SERVER) ps
 
 .PHONY: server-up
 server-up: ## create and start server
