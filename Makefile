@@ -48,14 +48,6 @@ server-up: ## create and start server
 server-down: ## stop and remove server
 	$(DOCKER_COMPOSE_SERVER) down
 
-.PHONY: sync-sqlboiler-conf
-sync-sqlboiler-conf: ## sync sqlboiler config file with passed envs
-	@echo "Syncing sqlboiler config file with passed envs..."
-	@sed -r -i 's/[[:space:]]*dbname[[:space:]]*=[[:space:]]*(.+)/dbname = "$(POSTGRES_DB)"/' sqlboiler.toml
-	@sed -r -i 's/[[:space:]]*port[[:space:]]*=[[:space:]]*(.+)/port = $(POSTGRES_PORT)/' sqlboiler.toml
-	@sed -r -i 's/[[:space:]]*user[[:space:]]*=[[:space:]]*(.+)/user = "$(POSTGRES_USER)"/' sqlboiler.toml
-	@sed -r -i 's/[[:space:]]*pass[[:space:]]*=[[:space:]]*(.+)/pass = "$(POSTGRES_PASSWORD)"/' sqlboiler.toml
-
 .PHONY: test-all
 test-all: ## run all tests
 	@echo "Running all tests..."
