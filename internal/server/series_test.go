@@ -1343,7 +1343,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 			////////////////////////////////////////////////////////////////////
 			return c == len(seriesCreateReqs)
 		},
-		400*time.Second,
+		300*time.Second,
 		time.Second,
 	)
 	require.False(timeoutExceed, "timeout exceed")
