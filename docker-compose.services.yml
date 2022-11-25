@@ -54,6 +54,8 @@ services:
         - LOGSTASH_VERSION=8.4.0
         - JDBC_POSTGRES_DRIVER_VERSION=42.4.2
     env_file: .env
+    ports:
+      - 9600:9600
     volumes:
       - ./logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml
       - ./logstash/pipeline/:/usr/share/logstash/pipeline/
