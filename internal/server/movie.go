@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/aria3ppp/watchlist-server/internal/app"
+	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
+	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/server/request"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
 	"github.com/labstack/echo/v4"
@@ -13,30 +15,19 @@ import (
 
 // GET /v1/authorized/movie/:id/
 func (s *Server) HandleMovieGet(c echo.Context) error {
-	// bind & validate params
-	var params request.IDPathParam
-	err := (&echo.DefaultBinder{}).BindPathParams(c, &params)
-	if err == nil {
-		err = params.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieGet: parameter binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidURLParameter),
-		)
+	// bind & validate id param
+	var param request.IDPathParam
+	if httpError := s.bindPath(c, &param); httpError != nil {
+		return httpError
 	}
 
 	// fetch movie
-	movie, err := s.app.MovieGet(c.Request().Context(), params.ID)
+	movie, err := s.app.MovieGet(c.Request().Context(), param.ID)
 	if err != nil {
 		if err == app.ErrNotFound {
 			s.logger.Info(
 				"server.HandleMovieGet: movie not found",
-				zap.Int("id", params.ID),
+				zap.Int("id", param.ID),
 			)
 			return echo.NewHTTPError(
 				http.StatusNotFound,
@@ -56,16 +47,31 @@ func (s *Server) HandleMovieGet(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.OK(movie))
 }
 
-// GET /v1/authorized/movie/?page=1&per_page=100
+// GET /v1/authorized/movie/?page=1&page_size=60&sort_field=id&sort_order=asc
 func (s *Server) HandleMoviesGetAll(c echo.Context) error {
-	// parse pagination queries
-	page, perPage, offset := request.ParsePaginationQueries(c.Request())
+	// bind & validate query
+	var pagQuery request.PaginationSortingQuery
+	if httpError := s.bindQuery(c, pagQuery.SetValidationModel(models.TableNames.Films)); httpError != nil {
+		return httpError
+	}
+
+	queryOptions := pagQuery.SetQueryIfNotSet(request.PaginationSortingQuery{
+		SortingQuery: request.SortingQuery{
+			SortField: models.FilmColumns.ID,
+			SortOrderQuery: request.SortOrderQuery{
+				SortOrder: request.SortOrderAsc,
+			},
+		},
+		PaginationQuery: request.PaginationQuery{
+			Page:     config.Config.Pagination.Page.MinValue,
+			PageSize: config.Config.Pagination.PageSize.DefaultValue,
+		},
+	}).ToQueryOptions()
 
 	// fetch movies
 	movies, total, err := s.app.MoviesGetAll(
 		c.Request().Context(),
-		offset,
-		perPage,
+		queryOptions,
 	)
 	if err != nil {
 		s.logger.Error(
@@ -80,7 +86,12 @@ func (s *Server) HandleMoviesGetAll(c echo.Context) error {
 
 	return c.JSON(
 		http.StatusOK,
-		response.Paginated(page, perPage, movies, total),
+		response.Paginated(
+			pagQuery.Page,
+			pagQuery.PageSize,
+			movies,
+			total,
+		),
 	)
 }
 
@@ -88,31 +99,13 @@ func (s *Server) HandleMoviesGetAll(c echo.Context) error {
 func (s *Server) HandleMovieCreate(c echo.Context) error {
 	// bind & validate request
 	var req dto.MovieCreateRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieCreate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleMovieCreate: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
 	// create movie
@@ -137,56 +130,27 @@ func (s *Server) HandleMovieCreate(c echo.Context) error {
 
 // UPDATE /v1/authorized/movie/:id/
 func (s *Server) HandleMovieUpdate(c echo.Context) error {
-	// bind & validate params
-	var params request.IDPathParam
-	err := (&echo.DefaultBinder{}).BindPathParams(c, &params)
-	if err == nil {
-		err = params.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieUpdate: parameter binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidURLParameter),
-		)
+	// bind & validate id param
+	var param request.IDPathParam
+	if httpError := s.bindPath(c, &param); httpError != nil {
+		return httpError
 	}
 
 	// bind & validate request
 	var req dto.MovieUpdateRequest
-	err = (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieUpdate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleMovieUpdate: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
 	// update movie
-	err = s.app.MovieUpdate(
+	err := s.app.MovieUpdate(
 		c.Request().Context(),
-		params.ID,
+		param.ID,
 		payload.UserID,
 		&req,
 	)
@@ -194,7 +158,7 @@ func (s *Server) HandleMovieUpdate(c echo.Context) error {
 		if err == app.ErrNotFound {
 			s.logger.Info(
 				"server.HandleMovieUpdate: movie not found",
-				zap.Int("id", params.ID),
+				zap.Int("id", param.ID),
 			)
 			return echo.NewHTTPError(
 				http.StatusNotFound,
@@ -217,56 +181,27 @@ func (s *Server) HandleMovieUpdate(c echo.Context) error {
 
 // DELETE /v1/authorized/movie/:id/
 func (s *Server) HandleMovieInvalidate(c echo.Context) error {
-	// bind & validate params
-	var params request.IDPathParam
-	err := (&echo.DefaultBinder{}).BindPathParams(c, &params)
-	if err == nil {
-		err = params.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieInvalidate: parameter binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidURLParameter),
-		)
+	// bind & validate id param
+	var param request.IDPathParam
+	if httpError := s.bindPath(c, &param); httpError != nil {
+		return httpError
 	}
 
 	// bind & validate request
 	var req dto.InvalidationRequest
-	err = (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieInvalidate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleMovieInvalidate: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
 	// invalidate movie
-	err = s.app.MovieInvalidate(
+	err := s.app.MovieInvalidate(
 		c.Request().Context(),
-		params.ID,
+		param.ID,
 		payload.UserID,
 		&req,
 	)
@@ -274,7 +209,7 @@ func (s *Server) HandleMovieInvalidate(c echo.Context) error {
 		if err == app.ErrNotFound {
 			s.logger.Info(
 				"server.HandleMovieInvalidate: movie not found",
-				zap.Int("id", params.ID),
+				zap.Int("id", param.ID),
 			)
 			return echo.NewHTTPError(
 				http.StatusNotFound,
@@ -295,39 +230,42 @@ func (s *Server) HandleMovieInvalidate(c echo.Context) error {
 	return c.JSON(http.StatusOK, response.OK(nil))
 }
 
-// GET /v1/authorized/movie/:id/?page=1&per_page=100
+// GET /v1/authorized/movie/:id/?page=1&page_size=100&sort_order=desc
 func (s *Server) HandleMovieAuditsGetAll(c echo.Context) error {
-	// bind & validate params
-	var params request.IDPathParam
-	err := (&echo.DefaultBinder{}).BindPathParams(c, &params)
-	if err == nil {
-		err = params.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMovieAuditsGetAll: parameter binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidURLParameter),
-		)
+	// bind & validate id param
+	var param request.IDPathParam
+	if httpError := s.bindPath(c, &param); httpError != nil {
+		return httpError
 	}
 
-	page, perPage, offset := request.ParsePaginationQueries(c.Request())
+	// bind & validate query
+	var pagQuery request.PaginationSortOrderQuery
+	if httpError := s.bindQuery(c, &pagQuery); httpError != nil {
+		return httpError
+	}
+
+	queryOptions := pagQuery.SetQueryIfNotSet(request.PaginationSortOrderQuery{
+		PaginationQuery: request.PaginationQuery{
+			Page:     config.Config.Pagination.Page.MinValue,
+			PageSize: config.Config.Pagination.PageSize.DefaultValue,
+		},
+		SortOrderQuery: request.SortOrderQuery{
+			SortOrder: request.SortOrderDesc,
+		},
+	}).
+		ToQueryOptions()
 
 	// fetch audits
 	audits, total, err := s.app.MovieAuditsGetAll(
 		c.Request().Context(),
-		params.ID,
-		offset,
-		perPage,
+		param.ID,
+		queryOptions,
 	)
 	if err != nil {
 		if err == app.ErrNotFound {
 			s.logger.Info(
 				"server.HandleMovieAuditsGetAll: movie not found",
-				zap.Int("id", params.ID),
+				zap.Int("id", param.ID),
 			)
 			return echo.NewHTTPError(
 				http.StatusNotFound,
@@ -347,37 +285,32 @@ func (s *Server) HandleMovieAuditsGetAll(c echo.Context) error {
 
 	return c.JSON(
 		http.StatusOK,
-		response.Paginated(page, perPage, audits, total),
+		response.Paginated(
+			pagQuery.Page,
+			pagQuery.PageSize,
+			audits,
+			total,
+		),
 	)
 }
 
-// GET /v1/authorized/movie/search/?query=query&page=1&per_page=60
+// GET /v1/authorized/movie/search/?query=query&page=1&page_size=60
 func (s *Server) HandleMoviesSearch(c echo.Context) error {
-	// bind & validate params
-	var query request.SearchQuery
-	err := (&echo.DefaultBinder{}).BindQueryParams(c, &query)
-	if err == nil {
-		err = query.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleMoviesSearch: parameter binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidURLParameter, err.Error()),
-		)
+	// bind & validate query
+	var searchPagQuery request.SearchPaginationQuery
+	if httpError := s.bindQuery(c, &searchPagQuery); httpError != nil {
+		return httpError
 	}
 
-	page, perPage, offset := request.ParsePaginationQueries(c.Request())
+	queryOptions := searchPagQuery.SetQueryIfNotSet(request.PaginationQuery{
+		Page:     config.Config.Pagination.Page.MinValue,
+		PageSize: config.Config.Pagination.PageSize.DefaultValue,
+	}).ToQueryOptions()
 
 	// fetch movies
 	movies, total, err := s.app.MoviesSearch(
 		c.Request().Context(),
-		query.Query,
-		offset,
-		perPage,
+		queryOptions,
 	)
 	if err != nil {
 		s.logger.Error(
@@ -392,6 +325,11 @@ func (s *Server) HandleMoviesSearch(c echo.Context) error {
 
 	return c.JSON(
 		http.StatusOK,
-		response.Paginated(page, perPage, movies, total),
+		response.Paginated(
+			searchPagQuery.Page,
+			searchPagQuery.PageSize,
+			movies,
+			total,
+		),
 	)
 }

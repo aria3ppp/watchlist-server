@@ -2,7 +2,6 @@ package server_test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -13,10 +12,8 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
-	"github.com/aria3ppp/watchlist-server/internal/validator"
 	"github.com/gavv/httpexpect/v2"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v8"
@@ -41,7 +38,14 @@ func TestHandleUserGet(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
 
 	// user not found
 	e.Request(method, path).
@@ -71,7 +75,7 @@ func TestHandleUserGet(t *testing.T) {
 		LastName:  userCreateReq.LastName,
 		Bio:       userCreateReq.Bio,
 		Birthdate: userCreateReq.Birthdate,
-		Joindate:  gotUser.Joindate,
+		Jointime:  gotUser.Jointime,
 	}
 
 	// get user
@@ -96,14 +100,28 @@ func TestHandleUserCreate(t *testing.T) {
 	path := "/v1/user/"
 	method := http.MethodPost
 
+	// invalid requeset
+	e.Request(method, path).
+		WithJSON(dto.UserCreateRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"email":    validation.ErrRequired,
+				"password": validation.ErrRequired,
+			}.Error(),
+		))
+
 	// create user
 	userCreateReq := &dto.UserCreateRequest{
 		Email:    "aria3ppp@gamil.com",
 		Password: "pa$$W0RD1",
 	}
 
-	// As database date is in utc so it should compare in the same timezone
-	createDate := testutils.Date(time.Now().UTC().Date())
+	createDate := time.Now()
 
 	userIDRaw := e.Request(method, path).
 		WithJSON(userCreateReq).
@@ -120,7 +138,7 @@ func TestHandleUserCreate(t *testing.T) {
 	gotUser, err := appInstance.UserGet(ctx, userID)
 	require.NoError(err)
 
-	require.GreaterOrEqual(gotUser.Joindate, createDate)
+	require.GreaterOrEqual(gotUser.Jointime, createDate)
 
 	require.Equal(&models.User{
 		ID:             userID,
@@ -130,7 +148,7 @@ func TestHandleUserCreate(t *testing.T) {
 		LastName:       userCreateReq.LastName,
 		Bio:            userCreateReq.Bio,
 		Birthdate:      userCreateReq.Birthdate,
-		Joindate:       gotUser.Joindate,
+		Jointime:       gotUser.Jointime,
 	}, gotUser)
 
 	// email address already taken
@@ -146,324 +164,106 @@ func TestHandleUserCreate(t *testing.T) {
 		Equal(response.Error(response.StatusEmailAlreadyUsed))
 }
 
-func TestHandleUserCreate_ValidateRequest(t *testing.T) {
-	server, _, _, teardown := setup()
+func TestHandleUserLogin(t *testing.T) {
+	server, _, defaults, teardown := setup(OptEnableDefaultUser)
 	t.Cleanup(teardown)
 
-	path := "/v1/user/"
+	e := httpexpect.New(t, server.URL)
+	path := "/v1/user/login"
 	method := http.MethodPost
 
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		email struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}
-		password struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}
-		firstname struct {
-			length Length
-		}
-		lastname struct {
-			length Length
-		}
-		bio struct {
-			length Length
-		}
-		birthdate struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-	}{
-		email: struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}{
-			length: Length{
-				shorterThanMin: "email",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Email.MaxLength,
-				),
-			},
-			validValue:   "email@example.com",
-			invalidValue: "invalidemailaddr",
-		},
-		password: struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}{
-			length: Length{
-				shorterThanMin: "passwd",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Password.MaxLength,
-				),
-			},
-			validValue:   "pa$$W0RD0",
-			invalidValue: "password",
-		},
-		firstname: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "f",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.FirstName.MaxLength,
-				),
-			},
-		},
-		lastname: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "l",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.LastName.MaxLength,
-				),
-			},
-		},
-		bio: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "b",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Bio.MaxLength,
-				),
-			},
-		},
-		birthdate: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.User.Birthdate.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.User.Birthdate.MinValue.Month,
-				),
-				config.Config.Validation.User.Birthdate.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.UserCreateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.UserCreateRequest{},
-			expErrors: validation.Errors{
+	// invalid request
+	e.Request(method, path).
+		WithJSON(dto.UserLoginRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
 				"email":    validation.ErrRequired,
 				"password": validation.ErrRequired,
-			},
-		},
+			}.Error(),
+		))
 
-		{
-			name: "tc2",
-			req: dto.UserCreateRequest{
-				Email:     "",
-				Password:  "",
-				FirstName: null.StringFrom(""),
-				LastName:  null.StringFrom(""),
-				Bio:       null.StringFrom(""),
-				Birthdate: null.TimeFrom(time.Time{}),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"email":      validation.ErrRequired,
-				"password":   validation.ErrRequired,
-				"first_name": validation.ErrRequired,
-				"last_name":  validation.ErrRequired,
-				"bio":        validation.ErrRequired,
-				"birthdate":  validation.ErrRequired,
-			},
-		},
+	// email not found
+	e.Request(method, path).
+		WithJSON(dto.UserLoginRequest{
+			Email:    "email@notfound.com",
+			Password: defaults.user.password,
+		}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusEmailNotFound))
 
-		{
-			name: "tc3",
-			req: dto.UserCreateRequest{
-				Email:    testDatas.email.length.shorterThanMin,
-				Password: testDatas.password.length.shorterThanMin,
-			},
-			expErrors: validation.Errors{
-				"email": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Email.MinLength,
-						"max": config.Config.Validation.User.Email.MaxLength,
-					},
-				),
-				"password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
+	// incorrect password
+	e.Request(method, path).
+		WithJSON(dto.UserLoginRequest{
+			Email:    defaults.user.email,
+			Password: "1nc0RR3ct_pa$$",
+		}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusIncorrectPassword))
 
-		{
-			name: "tc4",
-			req: dto.UserCreateRequest{
-				Email:    testDatas.email.length.longerThanMax,
-				Password: testDatas.password.length.longerThanMax,
-			},
-			expErrors: validation.Errors{
-				"email": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Email.MinLength,
-						"max": config.Config.Validation.User.Email.MaxLength,
-					},
-				),
-				"password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
+	// login user
+	payloadObj := e.Request(method, path).
+		WithJSON(dto.UserCreateRequest{
+			Email:    defaults.user.email,
+			Password: defaults.user.password,
+		}).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object()
 
-		{
-			name: "tc5",
-			req: dto.UserCreateRequest{
-				Email:    testDatas.email.invalidValue,
-				Password: testDatas.password.invalidValue,
-			},
-			expErrors: validation.Errors{
-				"email": is.ErrEmail,
-				"password": validator.ErrPasswordInvalid.SetParams(
-					map[string]any{
-						"num":     config.Config.Validation.User.Password.RequiredNumbers,
-						"lower":   config.Config.Validation.User.Password.RequiredLowerLetters,
-						"upper":   config.Config.Validation.User.Password.RequiredUpperLetters,
-						"special": config.Config.Validation.User.Password.RequiredSpecialChars,
-					},
-				),
-			},
-		},
+	payloadObj.Value("access_token").String().NotEmpty()
+	payloadObj.Value("refresh_token").String().NotEmpty()
+}
 
-		{
-			name: "tc6",
-			req: dto.UserCreateRequest{
-				Email:    testDatas.email.validValue,
-				Password: testDatas.password.validValue,
-				FirstName: null.StringFrom(
-					testDatas.firstname.length.shorterThanMin,
-				),
-				LastName: null.StringFrom(
-					testDatas.lastname.length.shorterThanMin,
-				),
-				Bio: null.StringFrom(testDatas.bio.length.shorterThanMin),
-				Birthdate: null.TimeFrom(
-					testDatas.birthdate.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"first_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.FirstName.MinLength,
-						"max": config.Config.Validation.User.FirstName.MaxLength,
-					},
-				),
-				"last_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.LastName.MinLength,
-						"max": config.Config.Validation.User.LastName.MaxLength,
-					},
-				),
-				"bio": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Bio.MinLength,
-						"max": config.Config.Validation.User.Bio.MaxLength,
-					},
-				),
-				"birthdate": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.User.Birthdate.MinValue.Year,
-							time.Month(
-								config.Config.Validation.User.Birthdate.MinValue.Month,
-							),
-							config.Config.Validation.User.Birthdate.MinValue.Day,
-						),
-					},
-				),
-			},
-		},
+func TestHandleUserRefreshToken(t *testing.T) {
+	server, _, defaults, teardown := setup(OptEnableDefaultUser)
+	t.Cleanup(teardown)
 
-		{
-			name: "tc7",
-			req: dto.UserCreateRequest{
-				Email:    testDatas.email.validValue,
-				Password: testDatas.password.validValue,
-				FirstName: null.StringFrom(
-					testDatas.firstname.length.longerThanMax,
-				),
-				LastName: null.StringFrom(
-					testDatas.lastname.length.longerThanMax,
-				),
-				Bio: null.StringFrom(testDatas.bio.length.longerThanMax),
-				Birthdate: null.TimeFrom(
-					testDatas.birthdate.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"first_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.FirstName.MinLength,
-						"max": config.Config.Validation.User.FirstName.MaxLength,
-					},
-				),
-				"last_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.LastName.MinLength,
-						"max": config.Config.Validation.User.LastName.MaxLength,
-					},
-				),
-				"bio": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Bio.MinLength,
-						"max": config.Config.Validation.User.Bio.MaxLength,
-					},
-				),
-				"birthdate": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-			},
-		},
-	}
+	e := httpexpect.New(t, server.URL)
+	path := "/v1/user/refresh"
+	method := http.MethodGet
 
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
+	// missing token
+	e.Request(method, path).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusTokenMissingOrMalformed))
 
-			e.Request(method, path).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
+	// invalid token
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, "Bearer invalid_token").
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusTokenInvalid))
+
+	// refresh token
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.refreshAuth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		String().NotEmpty()
 }
 
 func TestHandleUserUpdate(t *testing.T) {
@@ -476,13 +276,33 @@ func TestHandleUserUpdate(t *testing.T) {
 	path := "/v1/authorized/user/"
 	method := http.MethodPatch
 
+	// invalid request
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.UserUpdateRequest{FirstName: null.StringFrom("f")}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"first_name": validation.ErrLengthOutOfRange.SetParams(
+					map[string]any{
+						"min": config.Config.Validation.User.FirstName.MinLength,
+						"max": config.Config.Validation.User.FirstName.MaxLength,
+					},
+				),
+			}.Error(),
+		))
+
 	timeNow := time.Now()
 
 	// update user
 	userUpdateReq := &dto.UserUpdateRequest{
 		FirstName: null.StringFrom("updated_first_name"),
-		LastName:  null.StringFrom("update_last_name"),
-		Bio:       null.StringFrom("update_bio"),
+		LastName:  null.StringFrom("updated_last_name"),
+		Bio:       null.StringFrom("updated_bio"),
 		Birthdate: null.TimeFrom(
 			testutils.Date(
 				timeNow.Year(),
@@ -544,346 +364,6 @@ func TestHandleUserUpdate(t *testing.T) {
 		Equal(response.Error(response.StatusNotFound))
 }
 
-func TestHandleUserUpdate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/user/"
-	method := http.MethodPatch
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		firstname struct {
-			length Length
-		}
-		lastname struct {
-			length Length
-		}
-		bio struct {
-			length Length
-		}
-		birthdate struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-	}{
-		firstname: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "f",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.FirstName.MaxLength,
-				),
-			},
-		},
-		lastname: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "l",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.LastName.MaxLength,
-				),
-			},
-		},
-		bio: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "b",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Bio.MaxLength,
-				),
-			},
-		},
-		birthdate: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.User.Birthdate.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.User.Birthdate.MinValue.Month,
-				),
-				config.Config.Validation.User.Birthdate.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.UserUpdateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req: dto.UserUpdateRequest{
-				FirstName: null.StringFrom(""),
-				LastName:  null.StringFrom(""),
-				Bio:       null.StringFrom(""),
-				Birthdate: null.TimeFrom(time.Time{}),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"first_name": validation.ErrRequired,
-				"last_name":  validation.ErrRequired,
-				"bio":        validation.ErrRequired,
-				"birthdate":  validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.UserUpdateRequest{
-				FirstName: null.StringFrom(
-					testDatas.firstname.length.shorterThanMin,
-				),
-				LastName: null.StringFrom(
-					testDatas.lastname.length.shorterThanMin,
-				),
-				Bio: null.StringFrom(testDatas.bio.length.shorterThanMin),
-				Birthdate: null.TimeFrom(
-					testDatas.birthdate.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"first_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.FirstName.MinLength,
-						"max": config.Config.Validation.User.FirstName.MaxLength,
-					},
-				),
-				"last_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.LastName.MinLength,
-						"max": config.Config.Validation.User.LastName.MaxLength,
-					},
-				),
-				"bio": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Bio.MinLength,
-						"max": config.Config.Validation.User.Bio.MaxLength,
-					},
-				),
-				"birthdate": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.User.Birthdate.MinValue.Year,
-							time.Month(
-								config.Config.Validation.User.Birthdate.MinValue.Month,
-							),
-							config.Config.Validation.User.Birthdate.MinValue.Day,
-						),
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.UserUpdateRequest{
-				FirstName: null.StringFrom(
-					testDatas.firstname.length.longerThanMax,
-				),
-				LastName: null.StringFrom(
-					testDatas.lastname.length.longerThanMax,
-				),
-				Bio: null.StringFrom(testDatas.bio.length.longerThanMax),
-				Birthdate: null.TimeFrom(
-					testDatas.birthdate.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"first_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.FirstName.MinLength,
-						"max": config.Config.Validation.User.FirstName.MaxLength,
-					},
-				),
-				"last_name": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.LastName.MinLength,
-						"max": config.Config.Validation.User.LastName.MaxLength,
-					},
-				),
-				"bio": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Bio.MinLength,
-						"max": config.Config.Validation.User.Bio.MaxLength,
-					},
-				),
-				"birthdate": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
-func TestHandleUserDelete(t *testing.T) {
-	require := require.New(t)
-
-	server, appInstance, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	e := httpexpect.New(t, server.URL)
-	path := "/v1/authorized/user/"
-	method := http.MethodDelete
-
-	// incorrect password
-	e.Request(method, path).
-		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-		WithJSON(&dto.UserDeleteRequest{Password: "1nc0RR3ct_pa$$"}).
-		Expect().
-		Status(http.StatusBadRequest).
-		JSON().
-		Object().
-		Equal(response.Error(response.StatusIncorrectPassword))
-
-	// delete user
-	e.Request(method, path).
-		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-		WithJSON(&dto.UserDeleteRequest{Password: defaults.user.password}).
-		Expect().
-		Status(http.StatusOK).
-		JSON().
-		Object().
-		Equal(response.OK(nil))
-
-	// check deleted
-	userAfterDelete, err := appInstance.UserGet(
-		context.Background(),
-		defaults.user.id,
-	)
-	require.Nil(userAfterDelete)
-	require.Equal(app.ErrNotFound, err)
-
-	// user not found
-	e.Request(method, path).
-		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-		WithJSON(&dto.UserDeleteRequest{Password: defaults.user.password}).
-		Expect().
-		Status(http.StatusNotFound).
-		JSON().
-		Object().
-		Equal(response.Error(response.StatusNotFound))
-}
-
-func TestHandleUserDelete_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/user/"
-	method := http.MethodDelete
-
-	testCases := []struct {
-		name      string
-		req       dto.UserDeleteRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.UserDeleteRequest{},
-			expErrors: validation.Errors{
-				"password": validation.ErrRequired,
-			},
-		},
-		{
-			name: "tc2",
-			req: dto.UserDeleteRequest{
-				Password: "passwd",
-			},
-			expErrors: validation.Errors{
-				"password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.UserDeleteRequest{
-				Password: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Password.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.UserDeleteRequest{
-				Password: "invalid_password",
-			},
-			expErrors: map[string]error{
-				"password": validator.ErrPasswordInvalid.SetParams(
-					map[string]any{
-						"num":     config.Config.Validation.User.Password.RequiredNumbers,
-						"lower":   config.Config.Validation.User.Password.RequiredLowerLetters,
-						"upper":   config.Config.Validation.User.Password.RequiredUpperLetters,
-						"special": config.Config.Validation.User.Password.RequiredSpecialChars,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleUserEmailUpdate(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -894,6 +374,21 @@ func TestHandleUserEmailUpdate(t *testing.T) {
 	e := httpexpect.New(t, server.URL)
 	path := "/v1/authorized/user/email"
 	method := http.MethodPut
+
+	// invalid request
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.UserEmailUpdateRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"email": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// update email
 	userEmailUpdateReq := &dto.UserEmailUpdateRequest{Email: "email@gmail.com"}
@@ -919,7 +414,7 @@ func TestHandleUserEmailUpdate(t *testing.T) {
 			LastName:       defaults.user.reqObject.LastName,
 			Bio:            defaults.user.reqObject.Bio,
 			Birthdate:      defaults.user.reqObject.Birthdate,
-			Joindate:       gotUser.Joindate,
+			Jointime:       gotUser.Jointime,
 		},
 		gotUser,
 	)
@@ -942,89 +437,6 @@ func TestHandleUserEmailUpdate(t *testing.T) {
 		Equal(response.Error(response.StatusNotFound))
 }
 
-func TestHandleUserEmailUpdate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/user/email"
-	method := http.MethodPut
-
-	testCases := []struct {
-		name      string
-		req       dto.UserEmailUpdateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.UserEmailUpdateRequest{},
-			expErrors: validation.Errors{
-				"email": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.UserEmailUpdateRequest{
-				Email: "e",
-			},
-			expErrors: validation.Errors{
-				"email": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Email.MinLength,
-						"max": config.Config.Validation.User.Email.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.UserEmailUpdateRequest{
-				Email: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Email.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"email": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Email.MinLength,
-						"max": config.Config.Validation.User.Email.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.UserEmailUpdateRequest{
-				Email: "invalidemailaddr",
-			},
-			expErrors: validation.Errors{
-				"email": is.ErrEmail,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleUserPasswordUpdate(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -1036,7 +448,21 @@ func TestHandleUserPasswordUpdate(t *testing.T) {
 	path := "/v1/authorized/user/password"
 	method := http.MethodPut
 
-	newPassword := "new_pa$$W0RD1"
+	// invalid request
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.UserPasswordUpdateRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"current_password": validation.ErrRequired,
+				"new_password":     validation.ErrRequired,
+			}.Error(),
+		))
 
 	// same password as before
 	e.Request(method, path).
@@ -1050,6 +476,8 @@ func TestHandleUserPasswordUpdate(t *testing.T) {
 		JSON().
 		Object().
 		Equal(response.Error(response.StatusSameNewPassword))
+
+	newPassword := "new_pa$$W0RD1"
 
 	// incorrect password
 	e.Request(method, path).
@@ -1089,7 +517,7 @@ func TestHandleUserPasswordUpdate(t *testing.T) {
 			LastName:       defaults.user.reqObject.LastName,
 			Bio:            defaults.user.reqObject.Bio,
 			Birthdate:      defaults.user.reqObject.Birthdate,
-			Joindate:       gotUser.Joindate,
+			Jointime:       gotUser.Jointime,
 		},
 		gotUser,
 	)
@@ -1115,349 +543,66 @@ func TestHandleUserPasswordUpdate(t *testing.T) {
 		Equal(response.Error(response.StatusNotFound))
 }
 
-func TestHandleUserPasswordUpdate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
+func TestHandleUserDelete(t *testing.T) {
+	require := require.New(t)
 
-	path := "/v1/authorized/user/password"
-	method := http.MethodPut
-
-	testCases := []struct {
-		name      string
-		req       dto.UserPasswordUpdateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.UserPasswordUpdateRequest{},
-			expErrors: validation.Errors{
-				"current_password": validation.ErrRequired,
-				"new_password":     validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.UserPasswordUpdateRequest{
-				CurrentPassword: "cpwd",
-				NewPassword:     "npwd",
-			},
-			expErrors: validation.Errors{
-				"current_password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-				"new_password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.UserPasswordUpdateRequest{
-				CurrentPassword: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Password.MaxLength,
-				),
-				NewPassword: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Password.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"current_password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-				"new_password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.UserPasswordUpdateRequest{
-				CurrentPassword: "current_invalid_password",
-				NewPassword:     "new_invalid_password",
-			},
-			expErrors: validation.Errors{
-				"current_password": validator.ErrPasswordInvalid.SetParams(
-					map[string]any{
-						"num":     config.Config.Validation.User.Password.RequiredNumbers,
-						"lower":   config.Config.Validation.User.Password.RequiredLowerLetters,
-						"upper":   config.Config.Validation.User.Password.RequiredUpperLetters,
-						"special": config.Config.Validation.User.Password.RequiredSpecialChars,
-					},
-				),
-				"new_password": validator.ErrPasswordInvalid.SetParams(
-					map[string]any{
-						"num":     config.Config.Validation.User.Password.RequiredNumbers,
-						"lower":   config.Config.Validation.User.Password.RequiredLowerLetters,
-						"upper":   config.Config.Validation.User.Password.RequiredUpperLetters,
-						"special": config.Config.Validation.User.Password.RequiredSpecialChars,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(response.StatusInvalidRequest, tc.expErrors.Error()))
-		})
-	}
-}
-
-func TestHandleUserLogin(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
+	server, appInstance, defaults, teardown := setup(OptEnableDefaultUser)
 	t.Cleanup(teardown)
 
 	e := httpexpect.New(t, server.URL)
-	path := "/v1/user/login"
-	method := http.MethodPost
+	path := "/v1/authorized/user/"
+	method := http.MethodDelete
 
-	// email not found
+	// invalid request
 	e.Request(method, path).
-		WithJSON(dto.UserLoginRequest{
-			Email:    "email@notfound.com",
-			Password: defaults.user.password,
-		}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.UserDeleteRequest{}).
 		Expect().
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusEmailNotFound))
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"password": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// incorrect password
 	e.Request(method, path).
-		WithJSON(dto.UserLoginRequest{
-			Email:    defaults.user.email,
-			Password: "1nc0RR3ct_pa$$",
-		}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.UserDeleteRequest{Password: "1nc0RR3ct_pa$$"}).
 		Expect().
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
 		Equal(response.Error(response.StatusIncorrectPassword))
 
-	// login user
-	payloadObj := e.Request(method, path).
-		WithJSON(dto.UserCreateRequest{
-			Email:    defaults.user.email,
-			Password: defaults.user.password,
-		}).
+	// delete user
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.UserDeleteRequest{Password: defaults.user.password}).
 		Expect().
 		Status(http.StatusOK).
 		JSON().
 		Object().
-		ValueEqual("status", response.StatusOK.String()).
-		Value("payload").
-		Object()
+		Equal(response.OK(nil))
 
-	payloadObj.Value("access_token").String().NotEmpty()
-	payloadObj.Value("refresh_token").String().NotEmpty()
-}
+	// check deleted
+	userAfterDelete, err := appInstance.UserGet(
+		context.Background(),
+		defaults.user.id,
+	)
+	require.Nil(userAfterDelete)
+	require.Equal(app.ErrNotFound, err)
 
-func TestHandleUserLogin_ValidateRequest(t *testing.T) {
-	server, _, _, teardown := setup()
-	t.Cleanup(teardown)
-
-	path := "/v1/user/login"
-	method := http.MethodPost
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		email struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}
-		password struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}
-	}{
-		email: struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}{
-			length: Length{
-				shorterThanMin: "email",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Email.MaxLength,
-				),
-			},
-			validValue:   "email@example.com",
-			invalidValue: "invalidemailaddr",
-		},
-		password: struct {
-			length       Length
-			validValue   string
-			invalidValue string
-		}{
-			length: Length{
-				shorterThanMin: "passwd",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.User.Password.MaxLength,
-				),
-			},
-			validValue:   "pa$$W0RD0",
-			invalidValue: "password",
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.UserLoginRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.UserLoginRequest{},
-			expErrors: validation.Errors{
-				"email":    validation.ErrRequired,
-				"password": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.UserLoginRequest{
-				Email:    testDatas.email.length.shorterThanMin,
-				Password: testDatas.password.length.shorterThanMin,
-			},
-			expErrors: validation.Errors{
-				"email": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Email.MinLength,
-						"max": config.Config.Validation.User.Email.MaxLength,
-					},
-				),
-				"password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.UserLoginRequest{
-				Email:    testDatas.email.length.longerThanMax,
-				Password: testDatas.password.length.longerThanMax,
-			},
-			expErrors: validation.Errors{
-				"email": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Email.MinLength,
-						"max": config.Config.Validation.User.Email.MaxLength,
-					},
-				),
-				"password": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.User.Password.MinLength,
-						"max": config.Config.Validation.User.Password.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.UserLoginRequest{
-				Email:    testDatas.email.invalidValue,
-				Password: testDatas.password.invalidValue,
-			},
-			expErrors: validation.Errors{
-				"email": errors.New(is.ErrEmail.Message()),
-				"password": validator.ErrPasswordInvalid.SetParams(
-					map[string]any{
-						"num":     config.Config.Validation.User.Password.RequiredNumbers,
-						"lower":   config.Config.Validation.User.Password.RequiredLowerLetters,
-						"upper":   config.Config.Validation.User.Password.RequiredUpperLetters,
-						"special": config.Config.Validation.User.Password.RequiredSpecialChars,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(response.StatusInvalidRequest, tc.expErrors.Error()))
-		})
-	}
-}
-
-func TestHandleUserRefreshToken(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	e := httpexpect.New(t, server.URL)
-	path := "/v1/user/refresh"
-	method := http.MethodGet
-
-	// missing token
+	// user not found
 	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.UserDeleteRequest{Password: defaults.user.password}).
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusNotFound).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusTokenMissingOrMalformed))
-
-	// invalid token
-	e.Request(method, path).
-		WithHeader(echo.HeaderAuthorization, "Bearer invalid_token").
-		Expect().
-		Status(http.StatusBadRequest).
-		JSON().
-		Object().
-		Equal(response.Error(response.StatusTokenInvalid))
-
-	// refresh token
-	e.Request(method, path).
-		WithHeader(echo.HeaderAuthorization, defaults.user.refreshAuth).
-		Expect().
-		Status(http.StatusOK).
-		JSON().
-		Object().
-		ValueEqual("status", response.StatusOK.String()).
-		Value("payload").
-		String().NotEmpty()
+		Equal(response.Error(response.StatusNotFound))
 }

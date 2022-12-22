@@ -10,6 +10,7 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/search/searchtestutils"
 	"github.com/aria3ppp/watchlist-server/internal/server/request"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
@@ -41,7 +42,14 @@ func TestHandleMovieGet(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
 
 	// movie not found
 	e.Request(method, path).
@@ -108,6 +116,25 @@ func TestHandleMoviesGetAll(t *testing.T) {
 	path := "/v1/authorized/movie/"
 	method := http.MethodGet
 
+	// invalid query
+	e.Request(method, path).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
+
 	// no movie
 	e.Request(method, path).
 		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
@@ -154,11 +181,12 @@ func TestHandleMoviesGetAll(t *testing.T) {
 		require.NoError(err)
 	}
 
-	gotMovies, total, err := appInstance.MoviesGetAll(
-		ctx,
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
-	)
+	gotMovies, total, err := appInstance.MoviesGetAll(ctx, query.Options{
+		Offset:    0,
+		Limit:     config.Config.Pagination.PageSize.MaxValue,
+		SortField: models.FilmColumns.ID,
+		SortOrder: request.SortOrderAsc,
+	})
 	require.NoError(err)
 
 	items := make([]*models.Film, len(gotMovies))
@@ -201,6 +229,22 @@ func TestHandleMovieCreate(t *testing.T) {
 	e := httpexpect.New(t, server.URL)
 	path := "/v1/authorized/movie/"
 	method := http.MethodPost
+
+	// invalid request
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.MovieCreateRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"title":         validation.ErrRequired,
+				"date_released": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// create movie
 	movieCreateReq := &dto.MovieCreateRequest{
@@ -252,212 +296,6 @@ func TestHandleMovieCreate(t *testing.T) {
 	)
 }
 
-func TestHandleMovieCreate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/movie/"
-	method := http.MethodPost
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateReleased struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		duration struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateReleased: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Film.DateReleased.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Film.DateReleased.MinValue.Month,
-				),
-				config.Config.Validation.Film.DateReleased.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		duration: struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}{
-			lesserThanMinValue:  config.Config.Validation.Film.Duraion.MinLength - 1,
-			greaterThanMaxValue: config.Config.Validation.Film.Duraion.MaxLength + 1,
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.MovieCreateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.MovieCreateRequest{},
-			expErrors: validation.Errors{
-				"title":         validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.MovieCreateRequest{
-				Title:        "",
-				Descriptions: null.StringFrom(""),
-				DateReleased: time.Time{},
-				Duration:     null.IntFrom(0),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"title":         validation.ErrRequired,
-				"descriptions":  validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-				"duration":      validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.MovieCreateRequest{
-				Title: testDatas.title.length.shorterThanMin,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateReleased: testDatas.dateReleased.lesserThanMinValue,
-				Duration: null.IntFrom(
-					testDatas.duration.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Film.DateReleased.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Film.DateReleased.MinValue.Month,
-							),
-							config.Config.Validation.Film.DateReleased.MinValue.Day,
-						),
-					},
-				),
-				"duration": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MinLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.MovieCreateRequest{
-				Title: testDatas.title.length.longerThanMax,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateReleased: testDatas.dateReleased.greaterThanMaxValue,
-				Duration: null.IntFrom(
-					testDatas.duration.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"duration": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleMovieUpdate(t *testing.T) {
 	ctx := context.Background()
 
@@ -477,7 +315,35 @@ func TestHandleMovieUpdate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.MovieUpdateRequest{Title: null.StringFrom("t")}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"title": validation.ErrLengthOutOfRange.SetParams(
+					map[string]any{
+						"min": config.Config.Validation.Film.Title.MinLength,
+						"max": config.Config.Validation.Film.Title.MaxLength,
+					},
+				),
+			}.Error(),
+		))
 
 	// movie not found
 	e.Request(method, path).
@@ -611,210 +477,6 @@ func TestHandleMovieUpdate(t *testing.T) {
 	}
 }
 
-func TestHandleMovieUpdate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/movie/{id}"
-	method := http.MethodPatch
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateReleased struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		duration struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateReleased: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Film.DateReleased.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Film.DateReleased.MinValue.Month,
-				),
-				config.Config.Validation.Film.DateReleased.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		duration: struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}{
-			lesserThanMinValue:  config.Config.Validation.Film.Duraion.MinLength - 1,
-			greaterThanMaxValue: config.Config.Validation.Film.Duraion.MaxLength + 1,
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.MovieUpdateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req: dto.MovieUpdateRequest{
-				Title:        null.StringFrom(""),
-				Descriptions: null.StringFrom(""),
-				DateReleased: null.TimeFrom(time.Time{}),
-				Duration:     null.IntFrom(0),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"title":         validation.ErrRequired,
-				"descriptions":  validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-				"duration":      validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.MovieUpdateRequest{
-				Title: null.StringFrom(
-					testDatas.title.length.shorterThanMin,
-				),
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateReleased: null.TimeFrom(
-					testDatas.dateReleased.lesserThanMinValue,
-				),
-				Duration: null.IntFrom(
-					testDatas.duration.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Film.DateReleased.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Film.DateReleased.MinValue.Month,
-							),
-							config.Config.Validation.Film.DateReleased.MinValue.Day,
-						),
-					},
-				),
-				"duration": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MinLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.MovieUpdateRequest{
-				Title: null.StringFrom(testDatas.title.length.longerThanMax),
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateReleased: null.TimeFrom(
-					testDatas.dateReleased.greaterThanMaxValue,
-				),
-				Duration: null.IntFrom(
-					testDatas.duration.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"duration": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", 1).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleMovieInvalidate(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -839,7 +501,30 @@ func TestHandleMovieInvalidate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.InvalidationRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"invalidation": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// movie not found
 	e.Request(method, path).
@@ -901,80 +586,6 @@ func TestHandleMovieInvalidate(t *testing.T) {
 	)
 }
 
-func TestHandleMovieInvalidate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/movie/{id}"
-	method := http.MethodDelete
-
-	testCases := []struct {
-		name      string
-		req       dto.InvalidationRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.InvalidationRequest{},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.InvalidationRequest{
-				Invalidation: "i",
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.InvalidationRequest{
-				Invalidation: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Request.Invalidation.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", 1).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleMovieAuditsGetAll(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -994,7 +605,34 @@ func TestHandleMovieAuditsGetAll(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid query
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
 
 	// movie not found
 	e.Request(method, path).
@@ -1128,6 +766,21 @@ func TestHandleMoviesSearch(t *testing.T) {
 	path := "/v1/authorized/movie/search/"
 	method := http.MethodGet
 
+	// invalid query
+	e.Request(method, path).
+		WithQueryObject(request.SearchPaginationQuery{}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"query": validation.ErrRequired,
+			}.Error(),
+		))
+
 	// no movies
 	e.Request(method, path).
 		WithQuery("query", "query").
@@ -1136,7 +789,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 		Status(http.StatusOK).
 		JSON().
 		Object().
-		Equal(response.Paginated(config.Config.Pagination.Page.MinValue, config.Config.Pagination.PageSize.DefaultValue, []*models.Film{}, 0))
+		Equal(response.Paginated(config.Config.Pagination.Page.MinValue, config.Config.Pagination.PageSize.DefaultValue, []any{}, 0))
 
 	// add movies
 
@@ -1288,11 +941,12 @@ func TestHandleMoviesSearch(t *testing.T) {
 	)
 	require.False(timeoutExceed, "timeout exceed")
 
-	gotMovies, _, err := appInstance.MoviesGetAll(
-		ctx,
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
-	)
+	gotMovies, _, err := appInstance.MoviesGetAll(ctx, query.Options{
+		Offset:    0,
+		Limit:     config.Config.Pagination.PageSize.MaxValue,
+		SortField: models.FilmColumns.ID,
+		SortOrder: request.SortOrderAsc,
+	})
 	require.NoError(err)
 
 	items := make([]*models.Film, len(queryMovies))
@@ -1331,7 +985,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 	payloadItems := responseObject.
 		ValueEqual("status", response.StatusOK.String()).
 		ValueEqual("page", config.Config.Pagination.Page.MinValue).
-		ValueEqual("per_page", config.Config.Pagination.PageSize.DefaultValue).
+		ValueEqual("page_size", config.Config.Pagination.PageSize.DefaultValue).
 		ValueEqual("page_count", (len(items)+config.Config.Pagination.PageSize.DefaultValue-1)/config.Config.Pagination.PageSize.DefaultValue).
 		ValueEqual("total_items", len(items)).
 		Value("payload").Array()
@@ -1346,77 +1000,4 @@ func TestHandleMoviesSearch(t *testing.T) {
 
 	payloadItems.Length().Equal(len(items))
 	payloadItems.Contains(toAnySlice(items)...)
-}
-
-func TestHandleMoviesSearch_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/movie/search/"
-	method := http.MethodGet
-
-	testCases := []struct {
-		name      string
-		query     request.SearchQuery
-		expErrors validation.Errors
-	}{
-		{
-			name:  "tc1",
-			query: request.SearchQuery{},
-			expErrors: validation.Errors{
-				"query": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			query: request.SearchQuery{
-				Query: "i",
-			},
-			expErrors: validation.Errors{
-				"query": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Search.Query.MinLength,
-						"max": config.Config.Validation.Request.Search.Query.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			query: request.SearchQuery{
-				Query: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Request.Search.Query.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"query": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Search.Query.MinLength,
-						"max": config.Config.Validation.Request.Search.Query.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithQuery("query", tc.query.Query).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidURLParameter,
-					tc.expErrors.Error(),
-				))
-		})
-	}
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
@@ -18,13 +19,11 @@ import (
 type Service interface {
 	SearchSerieses(
 		ctx context.Context,
-		query string,
-		from, size int,
+		queryOptions query.SearchOptions,
 	) (hits []*models.Series, totalHits int, err error)
 	SearchMovies(
 		ctx context.Context,
-		query string,
-		from, size int,
+		queryOptions query.SearchOptions,
 	) (hits []*models.Film, totalHits int, err error)
 }
 
@@ -64,13 +63,13 @@ func NewElasticSearch(client *elasticsearch.Client) (*ElasticSearch, error) {
 func (e *ElasticSearch) search(
 	ctx context.Context,
 	index string,
-	query string,
+	queryBody string,
 	from, size int,
 ) (responseBody io.ReadCloser, err error) {
 	resp, err := e.client.Search(
 		e.client.Search.WithContext(ctx),
 		e.client.Search.WithIndex(index),
-		e.client.Search.WithBody(strings.NewReader(query)),
+		e.client.Search.WithBody(strings.NewReader(queryBody)),
 		e.client.Search.WithTrackTotalHits(true),
 		e.client.Search.WithFrom(from),
 		e.client.Search.WithSize(size),
@@ -86,13 +85,12 @@ func (e *ElasticSearch) search(
 
 func (e *ElasticSearch) SearchSerieses(
 	ctx context.Context,
-	query string,
-	from, size int,
+	queryOptions query.SearchOptions,
 ) (hits []*models.Series, totalHits int, err error) {
 	// prepare search query
 	searchQuery := fmt.Sprintf(
 		`{"query": {"multi_match": {"query": "%s", "fields": ["title", "descriptions"], "fuzziness": "AUTO"}}}`,
-		query,
+		queryOptions.Query,
 	)
 
 	// search query
@@ -100,8 +98,7 @@ func (e *ElasticSearch) SearchSerieses(
 		ctx,
 		config.Config.Elasticsearch.Index.Serieses,
 		searchQuery,
-		from,
-		size,
+		queryOptions.From, queryOptions.Size,
 	)
 	if err != nil {
 		return nil, 0, err
@@ -109,12 +106,15 @@ func (e *ElasticSearch) SearchSerieses(
 	defer responseBody.Close()
 
 	// decode response body
+	type Hit struct {
+		models.Series `json:"_source"`
+	}
 	type R struct {
 		Hits struct {
 			Total struct {
 				Value int
 			}
-			Hits []*seriesHit
+			Hits []*Hit
 		}
 	}
 	var r R
@@ -122,7 +122,7 @@ func (e *ElasticSearch) SearchSerieses(
 		return nil, 0, err
 	}
 
-	// SAFETY: seriesHit is a subtype of models.Series
+	// SAFETY: Hit should have a same memory layout as models.Series
 	hits = *(*[]*models.Series)(unsafe.Pointer(&r.Hits.Hits))
 	totalHits = r.Hits.Total.Value
 
@@ -131,13 +131,12 @@ func (e *ElasticSearch) SearchSerieses(
 
 func (e *ElasticSearch) SearchMovies(
 	ctx context.Context,
-	query string,
-	from, size int,
+	queryOptions query.SearchOptions,
 ) (hits []*models.Film, totalHits int, err error) {
 	// prepare search query
 	searchQuery := fmt.Sprintf(
 		`{"query": {"multi_match": {"query": "%s", "fields": ["title", "descriptions"], "fuzziness": "AUTO"}}}`,
-		query,
+		queryOptions.Query,
 	)
 
 	// search query
@@ -145,8 +144,7 @@ func (e *ElasticSearch) SearchMovies(
 		ctx,
 		config.Config.Elasticsearch.Index.Movies,
 		searchQuery,
-		from,
-		size,
+		queryOptions.From, queryOptions.Size,
 	)
 	if err != nil {
 		return nil, 0, err
@@ -154,12 +152,15 @@ func (e *ElasticSearch) SearchMovies(
 	defer responseBody.Close()
 
 	// decode response body
+	type Hit struct {
+		Source models.Film `json:"_source"`
+	}
 	type R struct {
 		Hits struct {
 			Total struct {
 				Value int
 			}
-			Hits []*movieHit
+			Hits []*Hit
 		}
 	}
 	var r R
@@ -167,7 +168,7 @@ func (e *ElasticSearch) SearchMovies(
 		return nil, 0, err
 	}
 
-	// SAFETY: movieHit is a subtype of models.Film
+	// SAFETY: Hit should have a same memory layout as models.Film
 	hits = *(*[]*models.Film)(unsafe.Pointer(&r.Hits.Hits))
 	totalHits = r.Hits.Total.Value
 

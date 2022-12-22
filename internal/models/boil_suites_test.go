@@ -17,6 +17,7 @@ func TestParent(t *testing.T) {
 	t.Run("Serieses", testSerieses)
 	t.Run("SeriesesAudits", testSeriesesAudits)
 	t.Run("Users", testUsers)
+	t.Run("Watchfilms", testWatchfilms)
 }
 
 func TestDelete(t *testing.T) {
@@ -25,6 +26,7 @@ func TestDelete(t *testing.T) {
 	t.Run("Serieses", testSeriesesDelete)
 	t.Run("SeriesesAudits", testSeriesesAuditsDelete)
 	t.Run("Users", testUsersDelete)
+	t.Run("Watchfilms", testWatchfilmsDelete)
 }
 
 func TestQueryDeleteAll(t *testing.T) {
@@ -33,6 +35,7 @@ func TestQueryDeleteAll(t *testing.T) {
 	t.Run("Serieses", testSeriesesQueryDeleteAll)
 	t.Run("SeriesesAudits", testSeriesesAuditsQueryDeleteAll)
 	t.Run("Users", testUsersQueryDeleteAll)
+	t.Run("Watchfilms", testWatchfilmsQueryDeleteAll)
 }
 
 func TestSliceDeleteAll(t *testing.T) {
@@ -41,6 +44,7 @@ func TestSliceDeleteAll(t *testing.T) {
 	t.Run("Serieses", testSeriesesSliceDeleteAll)
 	t.Run("SeriesesAudits", testSeriesesAuditsSliceDeleteAll)
 	t.Run("Users", testUsersSliceDeleteAll)
+	t.Run("Watchfilms", testWatchfilmsSliceDeleteAll)
 }
 
 func TestExists(t *testing.T) {
@@ -49,6 +53,7 @@ func TestExists(t *testing.T) {
 	t.Run("Serieses", testSeriesesExists)
 	t.Run("SeriesesAudits", testSeriesesAuditsExists)
 	t.Run("Users", testUsersExists)
+	t.Run("Watchfilms", testWatchfilmsExists)
 }
 
 func TestFind(t *testing.T) {
@@ -57,6 +62,7 @@ func TestFind(t *testing.T) {
 	t.Run("Serieses", testSeriesesFind)
 	t.Run("SeriesesAudits", testSeriesesAuditsFind)
 	t.Run("Users", testUsersFind)
+	t.Run("Watchfilms", testWatchfilmsFind)
 }
 
 func TestBind(t *testing.T) {
@@ -65,6 +71,7 @@ func TestBind(t *testing.T) {
 	t.Run("Serieses", testSeriesesBind)
 	t.Run("SeriesesAudits", testSeriesesAuditsBind)
 	t.Run("Users", testUsersBind)
+	t.Run("Watchfilms", testWatchfilmsBind)
 }
 
 func TestOne(t *testing.T) {
@@ -73,6 +80,7 @@ func TestOne(t *testing.T) {
 	t.Run("Serieses", testSeriesesOne)
 	t.Run("SeriesesAudits", testSeriesesAuditsOne)
 	t.Run("Users", testUsersOne)
+	t.Run("Watchfilms", testWatchfilmsOne)
 }
 
 func TestAll(t *testing.T) {
@@ -81,6 +89,7 @@ func TestAll(t *testing.T) {
 	t.Run("Serieses", testSeriesesAll)
 	t.Run("SeriesesAudits", testSeriesesAuditsAll)
 	t.Run("Users", testUsersAll)
+	t.Run("Watchfilms", testWatchfilmsAll)
 }
 
 func TestCount(t *testing.T) {
@@ -89,6 +98,7 @@ func TestCount(t *testing.T) {
 	t.Run("Serieses", testSeriesesCount)
 	t.Run("SeriesesAudits", testSeriesesAuditsCount)
 	t.Run("Users", testUsersCount)
+	t.Run("Watchfilms", testWatchfilmsCount)
 }
 
 func TestHooks(t *testing.T) {
@@ -97,6 +107,7 @@ func TestHooks(t *testing.T) {
 	t.Run("Serieses", testSeriesesHooks)
 	t.Run("SeriesesAudits", testSeriesesAuditsHooks)
 	t.Run("Users", testUsersHooks)
+	t.Run("Watchfilms", testWatchfilmsHooks)
 }
 
 func TestInsert(t *testing.T) {
@@ -110,6 +121,8 @@ func TestInsert(t *testing.T) {
 	t.Run("SeriesesAudits", testSeriesesAuditsInsertWhitelist)
 	t.Run("Users", testUsersInsert)
 	t.Run("Users", testUsersInsertWhitelist)
+	t.Run("Watchfilms", testWatchfilmsInsert)
+	t.Run("Watchfilms", testWatchfilmsInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
@@ -118,6 +131,8 @@ func TestToOne(t *testing.T) {
 	t.Run("FilmToUserUsingContributingUser", testFilmToOneUserUsingContributingUser)
 	t.Run("FilmToSeriesUsingSeries", testFilmToOneSeriesUsingSeries)
 	t.Run("SeriesToUserUsingContributingUser", testSeriesToOneUserUsingContributingUser)
+	t.Run("WatchfilmToFilmUsingFilm", testWatchfilmToOneFilmUsingFilm)
+	t.Run("WatchfilmToUserUsingUser", testWatchfilmToOneUserUsingUser)
 }
 
 // TestOneToOne tests cannot be run in parallel
@@ -127,9 +142,11 @@ func TestOneToOne(t *testing.T) {}
 // TestToMany tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToMany(t *testing.T) {
+	t.Run("FilmToWatchfilms", testFilmToManyWatchfilms)
 	t.Run("SeriesToSeriesFilms", testSeriesToManySeriesFilms)
 	t.Run("UserToContributedFilms", testUserToManyContributedFilms)
 	t.Run("UserToContributedSerieses", testUserToManyContributedSerieses)
+	t.Run("UserToWatchfilms", testUserToManyWatchfilms)
 }
 
 // TestToOneSet tests cannot be run in parallel
@@ -138,6 +155,8 @@ func TestToOneSet(t *testing.T) {
 	t.Run("FilmToUserUsingContributedFilms", testFilmToOneSetOpUserUsingContributingUser)
 	t.Run("FilmToSeriesUsingSeriesFilms", testFilmToOneSetOpSeriesUsingSeries)
 	t.Run("SeriesToUserUsingContributedSerieses", testSeriesToOneSetOpUserUsingContributingUser)
+	t.Run("WatchfilmToFilmUsingWatchfilms", testWatchfilmToOneSetOpFilmUsingFilm)
+	t.Run("WatchfilmToUserUsingWatchfilms", testWatchfilmToOneSetOpUserUsingUser)
 }
 
 // TestToOneRemove tests cannot be run in parallel
@@ -157,9 +176,11 @@ func TestOneToOneRemove(t *testing.T) {}
 // TestToManyAdd tests cannot be run in parallel
 // or deadlocks can occur.
 func TestToManyAdd(t *testing.T) {
+	t.Run("FilmToWatchfilms", testFilmToManyAddOpWatchfilms)
 	t.Run("SeriesToSeriesFilms", testSeriesToManyAddOpSeriesFilms)
 	t.Run("UserToContributedFilms", testUserToManyAddOpContributedFilms)
 	t.Run("UserToContributedSerieses", testUserToManyAddOpContributedSerieses)
+	t.Run("UserToWatchfilms", testUserToManyAddOpWatchfilms)
 }
 
 // TestToManySet tests cannot be run in parallel
@@ -180,6 +201,7 @@ func TestReload(t *testing.T) {
 	t.Run("Serieses", testSeriesesReload)
 	t.Run("SeriesesAudits", testSeriesesAuditsReload)
 	t.Run("Users", testUsersReload)
+	t.Run("Watchfilms", testWatchfilmsReload)
 }
 
 func TestReloadAll(t *testing.T) {
@@ -188,6 +210,7 @@ func TestReloadAll(t *testing.T) {
 	t.Run("Serieses", testSeriesesReloadAll)
 	t.Run("SeriesesAudits", testSeriesesAuditsReloadAll)
 	t.Run("Users", testUsersReloadAll)
+	t.Run("Watchfilms", testWatchfilmsReloadAll)
 }
 
 func TestSelect(t *testing.T) {
@@ -196,6 +219,7 @@ func TestSelect(t *testing.T) {
 	t.Run("Serieses", testSeriesesSelect)
 	t.Run("SeriesesAudits", testSeriesesAuditsSelect)
 	t.Run("Users", testUsersSelect)
+	t.Run("Watchfilms", testWatchfilmsSelect)
 }
 
 func TestUpdate(t *testing.T) {
@@ -204,6 +228,7 @@ func TestUpdate(t *testing.T) {
 	t.Run("Serieses", testSeriesesUpdate)
 	t.Run("SeriesesAudits", testSeriesesAuditsUpdate)
 	t.Run("Users", testUsersUpdate)
+	t.Run("Watchfilms", testWatchfilmsUpdate)
 }
 
 func TestSliceUpdateAll(t *testing.T) {
@@ -212,4 +237,5 @@ func TestSliceUpdateAll(t *testing.T) {
 	t.Run("Serieses", testSeriesesSliceUpdateAll)
 	t.Run("SeriesesAudits", testSeriesesAuditsSliceUpdateAll)
 	t.Run("Users", testUsersSliceUpdateAll)
+	t.Run("Watchfilms", testWatchfilmsSliceUpdateAll)
 }

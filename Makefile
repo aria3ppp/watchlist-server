@@ -1,14 +1,7 @@
-# load .env file if exists
+# load env file
 ENVFILE ?= .env
-$(if $(wildcard $(ENVFILE)), \
-	$(foreach VAR, $(shell sed -ne 's/ *\#.*$$//; /./ s/=.*$$// p' $(ENVFILE)), \
-		$(if $($(VAR)),, \
-			$(eval $(shell \
-					echo export $(VAR)=$(shell sed -nr 's/$(VAR)=(.+)/\1/p' $(ENVFILE)) \
-			)) \
-		) \
-	) \
-)
+include $(ENVFILE)
+export
 
 MIGRATE_DSN ?= "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
 MIGRATE := docker run --rm -v $(shell pwd)/migrations:/migrations --user "$(shell id -u):$(shell id -g)" --network host migrate/migrate -path=/migrations -database "$(MIGRATE_DSN)"
@@ -22,7 +15,7 @@ default: help
 # generate help info from comments: thanks to https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 .PHONY: help
 help: ## help information about make commands
-	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(firstword $(MAKEFILE_LIST)) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: services-ps
 services-ps: ## list services containers
@@ -35,6 +28,14 @@ services-up: ## create and start services
 .PHONY: services-down
 services-down: ## stop and remove services
 	$(DOCKER_COMPOSE_SERVICES) down
+
+.PHONY: services-postgres-up
+services-postgres-up: ## create and start postgres service
+	$(DOCKER_COMPOSE_SERVICES) up --wait postgres
+
+.PHONY: services-elasticsearch-up
+services-elasticsearch-up: ## create and start elasticsearch service
+	$(DOCKER_COMPOSE_SERVICES) up --wait elasticsearch
 
 .PHONY: server-ps
 server-ps: ## list server containers
@@ -94,6 +95,10 @@ test-search-integration: ## run search integration tests
 test-e2e: ## run end-to-end tests
 	env TEST_E2E=V go test -covermode=count -coverprofile=coverage.out ./internal/server/
 
+.PHONY: test-arg
+test-arg: ## run tests by passing $ARG env value to 'go test' command
+	go test -covermode=count -coverprofile=coverage.out $(ARG)
+
 .PHONY: test-all-cover
 test-all-cover: test-all ## run all tests and show test coverage information
 	go tool cover -html=coverage-all.out
@@ -119,8 +124,7 @@ test-e2e-cover: test-e2e ## run end-to-end tests and show test coverage informat
 	go tool cover -html=coverage.out
 
 .PHONY: test-arg-cover
-test-arg-cover: ## run tests by passing $ARG env value to 'go test' command and show test coverge information
-	go test -covermode=count -coverprofile=coverage.out $(ARG)
+test-arg-cover: test-arg ## run tests by passing $ARG env value to 'go test' command and show test coverge information
 	go tool cover -html=coverage.out
 
 .PHONY: run
@@ -141,12 +145,12 @@ generate: ## run 'go generate' for all packages
 	go generate ./...
 
 .PHONY: generate-models
-generate-models: ## run sqlboiler to generate models
+generate-models: sync-sqlboiler-conf ## run sqlboiler to generate models
 	sqlboiler --config sqlboiler.toml --output internal/models --no-auto-timestamps --wipe psql
 
 .PHONY: lint
 lint: ## run staticcheck
-	@staticcheck ./...
+	staticcheck ./...
 
 .PHONY: migrate
 migrate: ## run all new database migrations
@@ -160,7 +164,7 @@ migrate-down: ## revert database to the last migration step
 
 .PHONY: migrate-drop
 migrate-drop: ## drop all database migrations
-	@echo "Resetting database..."
+	@echo "dropping database..."
 	@$(MIGRATE) drop -f
 
 .PHONY: migrate-new

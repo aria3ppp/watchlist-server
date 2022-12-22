@@ -9,8 +9,10 @@ server:
     production: false
     logfile: ""
     port: 8080
-    handler_timeout_in_seconds: 10
-    shutdown_timeout_in_seconds: 11
+    # handler_timeout_in_seconds: 2
+    handler_timeout_in_seconds: 1000000
+    # shutdown_timeout_in_seconds: 3
+    shutdown_timeout_in_seconds: 1000001
 
 token:
     signing_key: ""
@@ -30,10 +32,8 @@ elasticsearch:
       
 pagination:
     page:
-        var_name: 'page'
         min_value: 1
     page_size:
-            var_name: 'per_page'
             default_value: 100
             min_value: 1
             max_value: 1000

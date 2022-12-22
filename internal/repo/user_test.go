@@ -277,7 +277,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 		Birthdate: null.TimeFrom(
 			testutils.Date(1990, 1, 1),
 		),
-		Joindate: testutils.Date(2020, 8, 16),
+		Jointime: testutils.Date(2020, 8, 16),
 	}
 
 	updatedUser := models.User{
@@ -290,7 +290,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 		Birthdate: null.TimeFrom(
 			testutils.Date(1997, 1, 1),
 		),
-		Joindate: testutils.Date(2022, 8, 16),
+		Jointime: testutils.Date(2022, 8, 16),
 	}
 
 	testCases := []struct {
@@ -384,7 +384,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 				LastName:       updatedUser.LastName,
 				Bio:            updatedUser.Bio,
 				Birthdate:      updatedUser.Birthdate,
-				Joindate:       updatedUser.Joindate,
+				Jointime:       updatedUser.Jointime,
 			},
 		},
 		{
@@ -397,7 +397,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 				LastName:       updatedUser.LastName,
 				Bio:            updatedUser.Bio,
 				Birthdate:      updatedUser.Birthdate,
-				Joindate:       updatedUser.Joindate,
+				Jointime:       updatedUser.Jointime,
 			},
 		},
 		{
@@ -409,7 +409,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 				LastName:       updatedUser.LastName,
 				Bio:            updatedUser.Bio,
 				Birthdate:      updatedUser.Birthdate,
-				Joindate:       updatedUser.Joindate,
+				Jointime:       updatedUser.Jointime,
 			},
 		},
 		{
@@ -420,7 +420,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 				LastName:  updatedUser.LastName,
 				Bio:       updatedUser.Bio,
 				Birthdate: updatedUser.Birthdate,
-				Joindate:  updatedUser.Joindate,
+				Jointime:  updatedUser.Jointime,
 			},
 		},
 		{
@@ -430,7 +430,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 				LastName:  updatedUser.LastName,
 				Bio:       updatedUser.Bio,
 				Birthdate: updatedUser.Birthdate,
-				Joindate:  updatedUser.Joindate,
+				Jointime:  updatedUser.Jointime,
 			},
 		},
 		{
@@ -439,7 +439,7 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 			updatedColumns: models.User{
 				Bio:       updatedUser.Bio,
 				Birthdate: updatedUser.Birthdate,
-				Joindate:  updatedUser.Joindate,
+				Jointime:  updatedUser.Jointime,
 			},
 		},
 		{
@@ -447,14 +447,14 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 			user: user,
 			updatedColumns: models.User{
 				Birthdate: updatedUser.Birthdate,
-				Joindate:  updatedUser.Joindate,
+				Jointime:  updatedUser.Jointime,
 			},
 		},
 		{
 			name: "tc15",
 			user: user,
 			updatedColumns: models.User{
-				Joindate: updatedUser.Joindate,
+				Jointime: updatedUser.Jointime,
 			},
 		},
 	}
@@ -503,8 +503,8 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 			if updatedColumns.Birthdate.Valid {
 				cols[models.UserColumns.Birthdate] = updatedColumns.Birthdate.Time
 			}
-			if updatedColumns.Joindate != (time.Time{}) {
-				cols[models.UserColumns.Joindate] = updatedColumns.Joindate
+			if updatedColumns.Jointime != (time.Time{}) {
+				cols[models.UserColumns.Jointime] = updatedColumns.Jointime
 			}
 
 			err = r.UserUpdate(ctx, user.ID, cols)
@@ -574,15 +574,15 @@ func TestUserUpdate_UpdateFields(t *testing.T) {
 					user.Birthdate.Time.Format(time.RFC3339[:10]),
 				)
 			}
-			if updatedColumns.Joindate != (time.Time{}) {
+			if updatedColumns.Jointime != (time.Time{}) {
 				require.Equal(
-					fetchedUser.Joindate.Format(time.RFC3339[:10]),
-					updatedColumns.Joindate.Format(time.RFC3339[:10]),
+					fetchedUser.Jointime.Format(time.RFC3339[:10]),
+					updatedColumns.Jointime.Format(time.RFC3339[:10]),
 				)
 			} else {
 				require.Equal(
-					fetchedUser.Joindate.Format(time.RFC3339[:10]),
-					user.Joindate.Format(time.RFC3339[:10]),
+					fetchedUser.Jointime.Format(time.RFC3339[:10]),
+					user.Jointime.Format(time.RFC3339[:10]),
 				)
 			}
 		})

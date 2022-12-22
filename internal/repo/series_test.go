@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/stretchr/testify/require"
@@ -71,13 +72,16 @@ func TestSeriesesGetAll(t *testing.T) {
 	err := r.UserCreate(ctx, user)
 	require.NoError(err)
 
+	queryOptions := query.Options{
+		Offset:    0,
+		Limit:     math.MaxInt,
+		SortField: models.SeriesColumns.ID,
+		SortOrder: "asc",
+	}
+
 	// first there's no serieses
 
-	fetchedSerieses, err := r.SeriesesGetAll(
-		ctx,
-		0,
-		math.MaxInt,
-	)
+	fetchedSerieses, err := r.SeriesesGetAll(ctx, queryOptions)
 	require.NoError(err)
 	require.Equal(0, len(fetchedSerieses))
 
@@ -113,11 +117,7 @@ func TestSeriesesGetAll(t *testing.T) {
 
 	// fetch serieses
 
-	fetchedSerieses, err = r.SeriesesGetAll(
-		ctx,
-		0,
-		math.MaxInt,
-	)
+	fetchedSerieses, err = r.SeriesesGetAll(ctx, queryOptions)
 	require.NoError(err)
 	require.Equal(len(serieses), len(fetchedSerieses))
 
@@ -316,8 +316,11 @@ func TestSeriesUpdate(t *testing.T) {
 	audits, err := r.SeriesAuditsGetAll(
 		ctx,
 		series.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortOrder: "desc",
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(audits))
@@ -392,8 +395,11 @@ func TestSeriesInvalidate(t *testing.T) {
 	audits, err := r.SeriesAuditsGetAll(
 		ctx,
 		series.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortOrder: "desc",
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(audits))
@@ -444,14 +450,15 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 	err = r.SeriesCreate(ctx, user.ID, series)
 	require.NoError(err)
 
+	queryOptions := query.SortOrderOptions{
+		Offset:    0,
+		Limit:     math.MaxInt,
+		SortOrder: "desc",
+	}
+
 	// first there's no audits
 
-	audits, err := r.SeriesAuditsGetAll(
-		ctx,
-		series.ID,
-		0,
-		math.MaxInt,
-	)
+	audits, err := r.SeriesAuditsGetAll(ctx, series.ID, queryOptions)
 	require.NoError(err)
 	require.Equal(0, len(audits))
 
@@ -488,12 +495,7 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 
 	// fetch audits
 
-	audits, err = r.SeriesAuditsGetAll(
-		ctx,
-		series.ID,
-		0,
-		math.MaxInt,
-	)
+	audits, err = r.SeriesAuditsGetAll(ctx, series.ID, queryOptions)
 	require.NoError(err)
 	require.Equal(len(seriesNewUpdates), len(audits))
 

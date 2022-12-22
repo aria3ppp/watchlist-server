@@ -7,7 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-// TODO: extract token service method into stand-alone functions and delete token service
 type JWT struct {
 	jwtInner        JWTInner
 	key             any

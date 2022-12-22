@@ -10,6 +10,7 @@ import (
 
 	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/search"
 	"github.com/aria3ppp/watchlist-server/internal/search/searchtestutils"
 	"github.com/stretchr/testify/require"
@@ -30,9 +31,11 @@ func TestSearchSerieses(t *testing.T) {
 
 	gotSerieses, total, err := s.SearchSerieses(
 		ctx,
-		"query",
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
+		query.SearchOptions{
+			Query: "query",
+			From:  0,
+			Size:  config.Config.Pagination.PageSize.MaxValue,
+		},
 	)
 	require.NoError(err)
 	require.Equal(0, total)
@@ -191,9 +194,11 @@ func TestSearchSerieses(t *testing.T) {
 	// search query
 	gotSerieses, total, err = s.SearchSerieses(
 		ctx,
-		"query",
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
+		query.SearchOptions{
+			Query: "query",
+			From:  0,
+			Size:  config.Config.Pagination.PageSize.MaxValue,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(querySerieses), total)
@@ -225,9 +230,11 @@ func TestSearchMovies(t *testing.T) {
 
 	gotMovies, total, err := s.SearchMovies(
 		ctx,
-		"query",
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
+		query.SearchOptions{
+			Query: "query",
+			From:  0,
+			Size:  config.Config.Pagination.PageSize.MaxValue,
+		},
 	)
 	require.NoError(err)
 	require.Equal(0, total)
@@ -386,9 +393,11 @@ func TestSearchMovies(t *testing.T) {
 	// search query
 	gotMovies, total, err = s.SearchMovies(
 		ctx,
-		"query",
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
+		query.SearchOptions{
+			Query: "query",
+			From:  0,
+			Size:  config.Config.Pagination.PageSize.MaxValue,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(queryMovies), total)

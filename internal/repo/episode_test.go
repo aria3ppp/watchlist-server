@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/stretchr/testify/require"
@@ -133,8 +134,11 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 	fetchedEpisode, err := r.EpisodesGetAllBySeries(
 		ctx,
 		series.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(0, len(fetchedEpisode))
@@ -176,8 +180,11 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 	fetchedEpisode, err = r.EpisodesGetAllBySeries(
 		ctx,
 		series.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(episodes), len(fetchedEpisode))
@@ -216,8 +223,11 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 		ctx,
 		series.ID,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(0, len(fetchedEpisodes))
@@ -258,8 +268,11 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 		ctx,
 		series.ID,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(episodes), len(fetchedEpisodes))
@@ -446,8 +459,11 @@ func TestEpisodePut(t *testing.T) {
 		ctx,
 		series.ID,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(fetchedEpisodes))
@@ -484,8 +500,11 @@ func TestEpisodePut(t *testing.T) {
 		ctx,
 		series.ID,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(fetchedEpisodes))
@@ -519,8 +538,11 @@ func TestEpisodePut(t *testing.T) {
 		series.ID,
 		seasonNumber,
 		episodeNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "desc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(audits))
@@ -656,8 +678,11 @@ func TestEpisodeUpdate(t *testing.T) {
 		series.ID,
 		seasonNumber,
 		episodeNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "desc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(audits))
@@ -768,8 +793,11 @@ func TestEpisodeInvalidate(t *testing.T) {
 		series.ID,
 		seasonNumber,
 		episodeNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "desc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(1, len(audits))
@@ -876,8 +904,11 @@ func TestEpisodesInvalidateAllBySeason(t *testing.T) {
 		ctx,
 		series.ID,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	for _, ie := range invalidatedEpisodes {
@@ -997,8 +1028,11 @@ func TestEpisodesInvalidateAllBySeries(t *testing.T) {
 	invalidatedEpisodes, err := r.EpisodesGetAllBySeries(
 		ctx,
 		series.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	for _, ie := range invalidatedEpisodes {
@@ -1083,8 +1117,11 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 		series.ID,
 		seasonNumber,
 		episodeNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "desc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(0, len(audits))
@@ -1133,8 +1170,11 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 		series.ID,
 		seasonNumber,
 		episodeNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "desc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(episodeNewVersions), len(audits))

@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// TODO: implement a log rotation strategy
 func newLogger(file *os.File) *zap.Logger {
 	var (
 		encoderConfig zapcore.EncoderConfig
@@ -81,10 +79,10 @@ func (l *esCustomLogger) LogRoundTrip(
 	// Count number of bytes in request and response.
 	//
 	if req != nil && req.Body != nil && req.Body != http.NoBody {
-		nReq, _ = io.Copy(ioutil.Discard, req.Body)
+		nReq, _ = io.Copy(io.Discard, req.Body)
 	}
 	if res != nil && res.Body != nil && res.Body != http.NoBody {
-		nRes, _ = io.Copy(ioutil.Discard, res.Body)
+		nRes, _ = io.Copy(io.Discard, res.Body)
 	}
 
 	// Log event.

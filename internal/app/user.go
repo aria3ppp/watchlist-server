@@ -15,8 +15,6 @@ func (a *Application) UserGet(
 	ctx context.Context,
 	id int,
 ) (*models.User, error) {
-	// TODO: feature: check if the user not blocked by the requested user id?
-
 	user, err := a.repository.UserGet(ctx, id)
 	if err != nil {
 		if err == repo.ErrNoRecord {

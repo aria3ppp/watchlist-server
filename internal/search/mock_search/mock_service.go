@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	models "github.com/aria3ppp/watchlist-server/internal/models"
+	query "github.com/aria3ppp/watchlist-server/internal/query"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -36,9 +37,9 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 }
 
 // SearchMovies mocks base method.
-func (m *MockService) SearchMovies(arg0 context.Context, arg1 string, arg2, arg3 int) ([]*models.Film, int, error) {
+func (m *MockService) SearchMovies(arg0 context.Context, arg1 query.SearchOptions) ([]*models.Film, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchMovies", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "SearchMovies", arg0, arg1)
 	ret0, _ := ret[0].([]*models.Film)
 	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(error)
@@ -46,15 +47,15 @@ func (m *MockService) SearchMovies(arg0 context.Context, arg1 string, arg2, arg3
 }
 
 // SearchMovies indicates an expected call of SearchMovies.
-func (mr *MockServiceMockRecorder) SearchMovies(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockServiceMockRecorder) SearchMovies(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMovies", reflect.TypeOf((*MockService)(nil).SearchMovies), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchMovies", reflect.TypeOf((*MockService)(nil).SearchMovies), arg0, arg1)
 }
 
 // SearchSerieses mocks base method.
-func (m *MockService) SearchSerieses(arg0 context.Context, arg1 string, arg2, arg3 int) ([]*models.Series, int, error) {
+func (m *MockService) SearchSerieses(arg0 context.Context, arg1 query.SearchOptions) ([]*models.Series, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SearchSerieses", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "SearchSerieses", arg0, arg1)
 	ret0, _ := ret[0].([]*models.Series)
 	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(error)
@@ -62,7 +63,7 @@ func (m *MockService) SearchSerieses(arg0 context.Context, arg1 string, arg2, ar
 }
 
 // SearchSerieses indicates an expected call of SearchSerieses.
-func (mr *MockServiceMockRecorder) SearchSerieses(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockServiceMockRecorder) SearchSerieses(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchSerieses", reflect.TypeOf((*MockService)(nil).SearchSerieses), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchSerieses", reflect.TypeOf((*MockService)(nil).SearchSerieses), arg0, arg1)
 }

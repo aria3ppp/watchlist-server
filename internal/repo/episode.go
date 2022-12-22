@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/volatiletech/null/v8"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
@@ -50,15 +51,15 @@ func (repo *Repository) EpisodeGet(
 func (repo *Repository) EpisodesGetAllBySeries(
 	ctx context.Context,
 	seriesID int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) ([]*models.Film, error) {
 	episodes, err := models.Films(
 		models.FilmWhere.SeriesID.EQ(null.IntFrom(seriesID)),
 		models.FilmWhere.SeasonNumber.IsNotNull(),
 		models.FilmWhere.EpisodeNumber.IsNotNull(),
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.FilmColumns.SeasonNumber),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(models.FilmColumns.SeasonNumber+" "+queryOptions.SortOrder),
 		qm.OrderBy(models.FilmColumns.EpisodeNumber),
 	).All(ctx, repo.exec)
 	if err != nil {
@@ -71,16 +72,15 @@ func (repo *Repository) EpisodesGetAllBySeason(
 	ctx context.Context,
 	seriesID int,
 	seasonNumber int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) ([]*models.Film, error) {
 	episodes, err := models.Films(
 		models.FilmWhere.SeriesID.EQ(null.IntFrom(seriesID)),
 		models.FilmWhere.SeasonNumber.EQ(null.IntFrom(seasonNumber)),
 		models.FilmWhere.EpisodeNumber.IsNotNull(),
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.FilmColumns.SeasonNumber),
-		qm.OrderBy(models.FilmColumns.EpisodeNumber),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(models.FilmColumns.EpisodeNumber+" "+queryOptions.SortOrder),
 	).All(ctx, repo.exec)
 	if err != nil {
 		return nil, err
@@ -270,15 +270,17 @@ func (repo *Repository) EpisodesInvalidateAllBySeries(
 func (repo *Repository) EpisodeAuditsGetAll(
 	ctx context.Context,
 	seriesID, seasonNumber, episodeNumber int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) ([]*models.FilmsAudit, error) {
 	audits, err := models.FilmsAudits(
 		models.FilmsAuditWhere.SeriesID.EQ(null.IntFrom(seriesID)),
 		models.FilmsAuditWhere.SeasonNumber.EQ(null.IntFrom(seasonNumber)),
 		models.FilmsAuditWhere.EpisodeNumber.EQ(null.IntFrom(episodeNumber)),
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.FilmsAuditColumns.ContributedAt+" desc"),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(
+			models.FilmsAuditColumns.ContributedAt+" "+queryOptions.SortOrder,
+		),
 	).All(ctx, repo.exec)
 	if err != nil {
 		return nil, err
@@ -300,6 +302,8 @@ func (repo *Repository) EpisodeAuditsCount(
 	}
 	return int(auditsCount), nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 func (repo *Repository) EpisodesAuditsGetAllBySeason(
 	ctx context.Context,

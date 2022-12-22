@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -30,15 +31,15 @@ func (repo *Repository) MovieGet(
 
 func (repo *Repository) MoviesGetAll(
 	ctx context.Context,
-	offset, limit int,
+	queryOptions query.Options,
 ) ([]*models.Film, error) {
 	movies, err := models.Films(
 		models.FilmWhere.SeriesID.IsNull(),
 		models.FilmWhere.SeasonNumber.IsNull(),
 		models.FilmWhere.EpisodeNumber.IsNull(),
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.FilmColumns.ID),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(queryOptions.SortField+" "+queryOptions.SortOrder),
 	).All(ctx, repo.exec)
 	if err != nil {
 		return nil, err
@@ -119,16 +120,16 @@ func (repo *Repository) MovieInvalidate(
 func (repo *Repository) MovieAuditsGetAll(
 	ctx context.Context,
 	id int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) ([]*models.FilmsAudit, error) {
 	audits, err := models.FilmsAudits(
 		models.FilmsAuditWhere.ID.EQ(id),
 		models.FilmsAuditWhere.SeriesID.IsNull(),
 		models.FilmsAuditWhere.SeasonNumber.IsNull(),
 		models.FilmsAuditWhere.EpisodeNumber.IsNull(),
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.FilmsAuditColumns.ContributedAt+" desc"),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(models.FilmColumns.ContributedAt+" "+queryOptions.SortOrder),
 	).All(ctx, repo.exec)
 	if err != nil {
 		return nil, err

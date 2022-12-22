@@ -4,7 +4,9 @@ BEGIN;
 create or replace procedure create_audit_table(
 	p_table text,
 	p_audit_table_name text,
-	p_audit_table_pk_columns_order_sep_by_comma text
+	p_audit_table_index_name text,
+	p_audit_table_index_column_name text,
+	p_audit_table_pk_columns_list_sep_by_comma text
 )
 language plpgsql
 as $$
@@ -40,13 +42,16 @@ begin
 	end loop;
 
 	-- set primary key
-	v_CREATE_AUDIT_TABLE_BODY = v_CREATE_AUDIT_TABLE_BODY || 'PRIMARY KEY (' || p_audit_table_pk_columns_order_sep_by_comma || ')';
+	v_CREATE_AUDIT_TABLE_BODY = v_CREATE_AUDIT_TABLE_BODY || 'PRIMARY KEY (' || p_audit_table_pk_columns_list_sep_by_comma || ')';
     
 	-- build create audit table command
 	v_CREATE_AUDIT_TABLE_CMD = 'CREATE TABLE IF NOT EXISTS ' || quote_ident(p_audit_table_name) || ' (' || v_CREATE_AUDIT_TABLE_BODY || ')';
 		
 	-- create the audit table
 	execute v_CREATE_AUDIT_TABLE_CMD;
+
+	-- create contributed_at index on audit table
+	execute 'CREATE INDEX ' || quote_ident(p_audit_table_index_name) || ' ON ' || quote_ident(p_audit_table_name) || ' (' || quote_ident(p_audit_table_index_column_name) || ')';
 	
 end;
 $$;

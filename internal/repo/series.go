@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/volatiletech/sqlboiler/v4/boil"
 	"github.com/volatiletech/sqlboiler/v4/queries/qm"
 )
@@ -27,12 +28,12 @@ func (repo *Repository) SeriesGet(
 
 func (repo *Repository) SeriesesGetAll(
 	ctx context.Context,
-	offset, limit int,
+	queryOptions query.Options,
 ) ([]*models.Series, error) {
 	series, err := models.Serieses(
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.SeriesColumns.ID),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(queryOptions.SortField+" "+queryOptions.SortOrder),
 	).All(ctx, repo.exec)
 	if err != nil {
 		return nil, err
@@ -101,13 +102,15 @@ func (repo *Repository) SeriesInvalidate(
 func (repo *Repository) SeriesAuditsGetAll(
 	ctx context.Context,
 	id int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) ([]*models.SeriesesAudit, error) {
 	audits, err := models.SeriesesAudits(
 		models.SeriesesAuditWhere.ID.EQ(id),
-		qm.Offset(offset),
-		qm.Limit(limit),
-		qm.OrderBy(models.SeriesesAuditColumns.ContributedAt+" desc"),
+		qm.Offset(queryOptions.Offset),
+		qm.Limit(queryOptions.Limit),
+		qm.OrderBy(
+			models.SeriesColumns.ContributedAt+" "+queryOptions.SortOrder,
+		),
 	).All(ctx, repo.exec)
 	if err != nil {
 		return nil, err

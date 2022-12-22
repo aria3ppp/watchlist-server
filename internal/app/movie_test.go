@@ -3,12 +3,14 @@ package app_test
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	_ "unsafe"
 
 	"github.com/aria3ppp/watchlist-server/internal/app"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/repo/mock_repo"
 	"github.com/aria3ppp/watchlist-server/internal/search/mock_search"
@@ -95,7 +97,7 @@ func TestMovieGet(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				MovieGet(ctx, id).
@@ -116,8 +118,12 @@ func TestMoviesGetAll(t *testing.T) {
 	var (
 		ctx = context.Background()
 
-		offset = 0
-		limit  = 50
+		queryOptions = query.Options{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortField: models.FilmColumns.ID,
+			SortOrder: "asc",
+		}
 
 		expMovies            = []*models.Film{{Title: "movie"}}
 		expTotal             = 1000
@@ -239,7 +245,7 @@ func TestMoviesGetAll(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -249,7 +255,7 @@ func TestMoviesGetAll(t *testing.T) {
 				Return(tc.tx.exp.err)
 
 			getAllCall := mockRepo.EXPECT().
-				MoviesGetAll(ctx, offset, limit).
+				MoviesGetAll(ctx, queryOptions).
 				Return(tc.getAll.exp.movies, tc.getAll.exp.err).
 				After(txCall)
 
@@ -262,7 +268,7 @@ func TestMoviesGetAll(t *testing.T) {
 
 			app := app.NewApplication(mockRepo, nil, nil, nil)
 
-			movies, total, err := app.MoviesGetAll(ctx, offset, limit)
+			movies, total, err := app.MoviesGetAll(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.movies, movies)
 			require.Equal(tc.exp.total, total)
@@ -331,7 +337,7 @@ func TestMovieCreate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				MovieCreate(
@@ -442,7 +448,7 @@ func TestMovieUpdate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				MovieUpdate(ctx, id, contributorID, movieUpdateRequestToValidMap(req)).
@@ -531,7 +537,7 @@ func TestMovieInvalidate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				MovieInvalidate(ctx, id, contributorID, req.Invalidation).
@@ -551,9 +557,12 @@ func TestMovieAuditsGetAll(t *testing.T) {
 	var (
 		ctx = context.Background()
 
-		id     = 1
-		offset = 0
-		limit  = 50
+		id           = 1
+		queryOptions = query.SortOrderOptions{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortOrder: "desc",
+		}
 
 		expMovie = &models.Film{
 			Title: "movie",
@@ -745,7 +754,7 @@ func TestMovieAuditsGetAll(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -761,7 +770,7 @@ func TestMovieAuditsGetAll(t *testing.T) {
 
 			if tc.movieGet.exp.err == nil {
 				movieAuditsGetAllCall := mockRepo.EXPECT().
-					MovieAuditsGetAll(ctx, id, offset, limit).
+					MovieAuditsGetAll(ctx, id, queryOptions).
 					Return(tc.movieAuditsGetAll.exp.audits, tc.movieAuditsGetAll.exp.err).
 					After(movieGetCall)
 
@@ -775,7 +784,7 @@ func TestMovieAuditsGetAll(t *testing.T) {
 
 			app := app.NewApplication(mockRepo, nil, nil, nil)
 
-			audits, total, err := app.MovieAuditsGetAll(ctx, id, offset, limit)
+			audits, total, err := app.MovieAuditsGetAll(ctx, id, queryOptions)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.audits, audits)
 			require.Equal(tc.exp.total, total)
@@ -789,9 +798,11 @@ func TestMoviesSearch(t *testing.T) {
 	ctx := context.Background()
 
 	var (
-		query     = "query"
-		offset    = 0
-		limit     = 10
+		queryOptions = query.SearchOptions{
+			Query: "query",
+			From:  0,
+			Size:  10,
+		}
 		expError  = errors.New("error")
 		expMovies = []*models.Film{{Title: "title"}}
 		expTotal  = 100
@@ -859,14 +870,14 @@ func TestMoviesSearch(t *testing.T) {
 			mockSearch := mock_search.NewMockService(controller)
 
 			mockSearch.EXPECT().
-				SearchMovies(ctx, query, offset, limit).
+				SearchMovies(ctx, queryOptions).
 				Return(tc.search.exp.movies, tc.exp.total, tc.search.exp.err)
 
 			app := app.NewApplication(nil, nil, mockSearch, nil)
 
-			series, total, err := app.MoviesSearch(ctx, query, offset, limit)
+			movies, total, err := app.MoviesSearch(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
-			require.Equal(tc.exp.movies, series)
+			require.Equal(tc.exp.movies, movies)
 			require.Equal(tc.exp.total, total)
 		})
 	}

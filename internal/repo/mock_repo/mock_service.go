@@ -9,7 +9,9 @@ import (
 	reflect "reflect"
 
 	models "github.com/aria3ppp/watchlist-server/internal/models"
+	query "github.com/aria3ppp/watchlist-server/internal/query"
 	repo "github.com/aria3ppp/watchlist-server/internal/repo"
+	watchlist "github.com/aria3ppp/watchlist-server/internal/watchlist"
 	gomock "github.com/golang/mock/gomock"
 )
 
@@ -52,18 +54,18 @@ func (mr *MockServiceTxMockRecorder) EpisodeAuditsCount(arg0, arg1, arg2, arg3 i
 }
 
 // EpisodeAuditsGetAll mocks base method.
-func (m *MockServiceTx) EpisodeAuditsGetAll(arg0 context.Context, arg1, arg2, arg3, arg4, arg5 int) ([]*models.FilmsAudit, error) {
+func (m *MockServiceTx) EpisodeAuditsGetAll(arg0 context.Context, arg1, arg2, arg3 int, arg4 query.SortOrderOptions) ([]*models.FilmsAudit, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodeAuditsGetAll", arg0, arg1, arg2, arg3, arg4, arg5)
+	ret := m.ctrl.Call(m, "EpisodeAuditsGetAll", arg0, arg1, arg2, arg3, arg4)
 	ret0, _ := ret[0].([]*models.FilmsAudit)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // EpisodeAuditsGetAll indicates an expected call of EpisodeAuditsGetAll.
-func (mr *MockServiceTxMockRecorder) EpisodeAuditsGetAll(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) EpisodeAuditsGetAll(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodeAuditsGetAll", reflect.TypeOf((*MockServiceTx)(nil).EpisodeAuditsGetAll), arg0, arg1, arg2, arg3, arg4, arg5)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodeAuditsGetAll", reflect.TypeOf((*MockServiceTx)(nil).EpisodeAuditsGetAll), arg0, arg1, arg2, arg3, arg4)
 }
 
 // EpisodeGet mocks base method.
@@ -123,66 +125,6 @@ func (mr *MockServiceTxMockRecorder) EpisodeUpdate(arg0, arg1, arg2, arg3, arg4,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodeUpdate", reflect.TypeOf((*MockServiceTx)(nil).EpisodeUpdate), arg0, arg1, arg2, arg3, arg4, arg5)
 }
 
-// EpisodesAuditsCountBySeason mocks base method.
-func (m *MockServiceTx) EpisodesAuditsCountBySeason(arg0 context.Context, arg1, arg2 int) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesAuditsCountBySeason", arg0, arg1, arg2)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EpisodesAuditsCountBySeason indicates an expected call of EpisodesAuditsCountBySeason.
-func (mr *MockServiceTxMockRecorder) EpisodesAuditsCountBySeason(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesAuditsCountBySeason", reflect.TypeOf((*MockServiceTx)(nil).EpisodesAuditsCountBySeason), arg0, arg1, arg2)
-}
-
-// EpisodesAuditsCountBySeries mocks base method.
-func (m *MockServiceTx) EpisodesAuditsCountBySeries(arg0 context.Context, arg1 int) (int, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesAuditsCountBySeries", arg0, arg1)
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EpisodesAuditsCountBySeries indicates an expected call of EpisodesAuditsCountBySeries.
-func (mr *MockServiceTxMockRecorder) EpisodesAuditsCountBySeries(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesAuditsCountBySeries", reflect.TypeOf((*MockServiceTx)(nil).EpisodesAuditsCountBySeries), arg0, arg1)
-}
-
-// EpisodesAuditsGetAllBySeason mocks base method.
-func (m *MockServiceTx) EpisodesAuditsGetAllBySeason(arg0 context.Context, arg1, arg2, arg3, arg4 int) ([]*models.FilmsAudit, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesAuditsGetAllBySeason", arg0, arg1, arg2, arg3, arg4)
-	ret0, _ := ret[0].([]*models.FilmsAudit)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EpisodesAuditsGetAllBySeason indicates an expected call of EpisodesAuditsGetAllBySeason.
-func (mr *MockServiceTxMockRecorder) EpisodesAuditsGetAllBySeason(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesAuditsGetAllBySeason", reflect.TypeOf((*MockServiceTx)(nil).EpisodesAuditsGetAllBySeason), arg0, arg1, arg2, arg3, arg4)
-}
-
-// EpisodesAuditsGetAllBySeries mocks base method.
-func (m *MockServiceTx) EpisodesAuditsGetAllBySeries(arg0 context.Context, arg1, arg2, arg3 int) ([]*models.FilmsAudit, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesAuditsGetAllBySeries", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].([]*models.FilmsAudit)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EpisodesAuditsGetAllBySeries indicates an expected call of EpisodesAuditsGetAllBySeries.
-func (mr *MockServiceTxMockRecorder) EpisodesAuditsGetAllBySeries(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesAuditsGetAllBySeries", reflect.TypeOf((*MockServiceTx)(nil).EpisodesAuditsGetAllBySeries), arg0, arg1, arg2, arg3)
-}
-
 // EpisodesCountBySeason mocks base method.
 func (m *MockServiceTx) EpisodesCountBySeason(arg0 context.Context, arg1, arg2 int) (int, error) {
 	m.ctrl.T.Helper()
@@ -214,33 +156,33 @@ func (mr *MockServiceTxMockRecorder) EpisodesCountBySeries(arg0, arg1 interface{
 }
 
 // EpisodesGetAllBySeason mocks base method.
-func (m *MockServiceTx) EpisodesGetAllBySeason(arg0 context.Context, arg1, arg2, arg3, arg4 int) ([]*models.Film, error) {
+func (m *MockServiceTx) EpisodesGetAllBySeason(arg0 context.Context, arg1, arg2 int, arg3 query.SortOrderOptions) ([]*models.Film, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesGetAllBySeason", arg0, arg1, arg2, arg3, arg4)
+	ret := m.ctrl.Call(m, "EpisodesGetAllBySeason", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]*models.Film)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // EpisodesGetAllBySeason indicates an expected call of EpisodesGetAllBySeason.
-func (mr *MockServiceTxMockRecorder) EpisodesGetAllBySeason(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) EpisodesGetAllBySeason(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesGetAllBySeason", reflect.TypeOf((*MockServiceTx)(nil).EpisodesGetAllBySeason), arg0, arg1, arg2, arg3, arg4)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesGetAllBySeason", reflect.TypeOf((*MockServiceTx)(nil).EpisodesGetAllBySeason), arg0, arg1, arg2, arg3)
 }
 
 // EpisodesGetAllBySeries mocks base method.
-func (m *MockServiceTx) EpisodesGetAllBySeries(arg0 context.Context, arg1, arg2, arg3 int) ([]*models.Film, error) {
+func (m *MockServiceTx) EpisodesGetAllBySeries(arg0 context.Context, arg1 int, arg2 query.SortOrderOptions) ([]*models.Film, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesGetAllBySeries", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "EpisodesGetAllBySeries", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*models.Film)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // EpisodesGetAllBySeries indicates an expected call of EpisodesGetAllBySeries.
-func (mr *MockServiceTxMockRecorder) EpisodesGetAllBySeries(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) EpisodesGetAllBySeries(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesGetAllBySeries", reflect.TypeOf((*MockServiceTx)(nil).EpisodesGetAllBySeries), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesGetAllBySeries", reflect.TypeOf((*MockServiceTx)(nil).EpisodesGetAllBySeries), arg0, arg1, arg2)
 }
 
 // EpisodesInvalidateAllBySeason mocks base method.
@@ -271,6 +213,20 @@ func (mr *MockServiceTxMockRecorder) EpisodesInvalidateAllBySeries(arg0, arg1, a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesInvalidateAllBySeries", reflect.TypeOf((*MockServiceTx)(nil).EpisodesInvalidateAllBySeries), arg0, arg1, arg2, arg3)
 }
 
+// FilmExists mocks base method.
+func (m *MockServiceTx) FilmExists(arg0 context.Context, arg1 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilmExists", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// FilmExists indicates an expected call of FilmExists.
+func (mr *MockServiceTxMockRecorder) FilmExists(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilmExists", reflect.TypeOf((*MockServiceTx)(nil).FilmExists), arg0, arg1)
+}
+
 // MovieAuditsCount mocks base method.
 func (m *MockServiceTx) MovieAuditsCount(arg0 context.Context, arg1 int) (int, error) {
 	m.ctrl.T.Helper()
@@ -287,18 +243,18 @@ func (mr *MockServiceTxMockRecorder) MovieAuditsCount(arg0, arg1 interface{}) *g
 }
 
 // MovieAuditsGetAll mocks base method.
-func (m *MockServiceTx) MovieAuditsGetAll(arg0 context.Context, arg1, arg2, arg3 int) ([]*models.FilmsAudit, error) {
+func (m *MockServiceTx) MovieAuditsGetAll(arg0 context.Context, arg1 int, arg2 query.SortOrderOptions) ([]*models.FilmsAudit, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MovieAuditsGetAll", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "MovieAuditsGetAll", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*models.FilmsAudit)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // MovieAuditsGetAll indicates an expected call of MovieAuditsGetAll.
-func (mr *MockServiceTxMockRecorder) MovieAuditsGetAll(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) MovieAuditsGetAll(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MovieAuditsGetAll", reflect.TypeOf((*MockServiceTx)(nil).MovieAuditsGetAll), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MovieAuditsGetAll", reflect.TypeOf((*MockServiceTx)(nil).MovieAuditsGetAll), arg0, arg1, arg2)
 }
 
 // MovieCreate mocks base method.
@@ -374,18 +330,18 @@ func (mr *MockServiceTxMockRecorder) MoviesCount(arg0 interface{}) *gomock.Call 
 }
 
 // MoviesGetAll mocks base method.
-func (m *MockServiceTx) MoviesGetAll(arg0 context.Context, arg1, arg2 int) ([]*models.Film, error) {
+func (m *MockServiceTx) MoviesGetAll(arg0 context.Context, arg1 query.Options) ([]*models.Film, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MoviesGetAll", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "MoviesGetAll", arg0, arg1)
 	ret0, _ := ret[0].([]*models.Film)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // MoviesGetAll indicates an expected call of MoviesGetAll.
-func (mr *MockServiceTxMockRecorder) MoviesGetAll(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) MoviesGetAll(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoviesGetAll", reflect.TypeOf((*MockServiceTx)(nil).MoviesGetAll), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoviesGetAll", reflect.TypeOf((*MockServiceTx)(nil).MoviesGetAll), arg0, arg1)
 }
 
 // SeriesAuditsCount mocks base method.
@@ -404,18 +360,18 @@ func (mr *MockServiceTxMockRecorder) SeriesAuditsCount(arg0, arg1 interface{}) *
 }
 
 // SeriesAuditsGetAll mocks base method.
-func (m *MockServiceTx) SeriesAuditsGetAll(arg0 context.Context, arg1, arg2, arg3 int) ([]*models.SeriesesAudit, error) {
+func (m *MockServiceTx) SeriesAuditsGetAll(arg0 context.Context, arg1 int, arg2 query.SortOrderOptions) ([]*models.SeriesesAudit, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SeriesAuditsGetAll", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "SeriesAuditsGetAll", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]*models.SeriesesAudit)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SeriesAuditsGetAll indicates an expected call of SeriesAuditsGetAll.
-func (mr *MockServiceTxMockRecorder) SeriesAuditsGetAll(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) SeriesAuditsGetAll(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeriesAuditsGetAll", reflect.TypeOf((*MockServiceTx)(nil).SeriesAuditsGetAll), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeriesAuditsGetAll", reflect.TypeOf((*MockServiceTx)(nil).SeriesAuditsGetAll), arg0, arg1, arg2)
 }
 
 // SeriesCreate mocks base method.
@@ -491,18 +447,18 @@ func (mr *MockServiceTxMockRecorder) SeriesesCount(arg0 interface{}) *gomock.Cal
 }
 
 // SeriesesGetAll mocks base method.
-func (m *MockServiceTx) SeriesesGetAll(arg0 context.Context, arg1, arg2 int) ([]*models.Series, error) {
+func (m *MockServiceTx) SeriesesGetAll(arg0 context.Context, arg1 query.Options) ([]*models.Series, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SeriesesGetAll", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "SeriesesGetAll", arg0, arg1)
 	ret0, _ := ret[0].([]*models.Series)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SeriesesGetAll indicates an expected call of SeriesesGetAll.
-func (mr *MockServiceTxMockRecorder) SeriesesGetAll(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockServiceTxMockRecorder) SeriesesGetAll(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeriesesGetAll", reflect.TypeOf((*MockServiceTx)(nil).SeriesesGetAll), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeriesesGetAll", reflect.TypeOf((*MockServiceTx)(nil).SeriesesGetAll), arg0, arg1)
 }
 
 // Transaction mocks base method.
@@ -604,4 +560,77 @@ func (m *MockServiceTx) UsersCount(arg0 context.Context) (int, error) {
 func (mr *MockServiceTxMockRecorder) UsersCount(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UsersCount", reflect.TypeOf((*MockServiceTx)(nil).UsersCount), arg0)
+}
+
+// WatchlistAdd mocks base method.
+func (m *MockServiceTx) WatchlistAdd(arg0 context.Context, arg1, arg2 int) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchlistAdd", arg0, arg1, arg2)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchlistAdd indicates an expected call of WatchlistAdd.
+func (mr *MockServiceTxMockRecorder) WatchlistAdd(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchlistAdd", reflect.TypeOf((*MockServiceTx)(nil).WatchlistAdd), arg0, arg1, arg2)
+}
+
+// WatchlistCount mocks base method.
+func (m *MockServiceTx) WatchlistCount(arg0 context.Context, arg1 int, arg2 string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchlistCount", arg0, arg1, arg2)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchlistCount indicates an expected call of WatchlistCount.
+func (mr *MockServiceTxMockRecorder) WatchlistCount(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchlistCount", reflect.TypeOf((*MockServiceTx)(nil).WatchlistCount), arg0, arg1, arg2)
+}
+
+// WatchlistDelete mocks base method.
+func (m *MockServiceTx) WatchlistDelete(arg0 context.Context, arg1, arg2 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchlistDelete", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WatchlistDelete indicates an expected call of WatchlistDelete.
+func (mr *MockServiceTxMockRecorder) WatchlistDelete(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchlistDelete", reflect.TypeOf((*MockServiceTx)(nil).WatchlistDelete), arg0, arg1, arg2)
+}
+
+// WatchlistGet mocks base method.
+func (m *MockServiceTx) WatchlistGet(arg0 context.Context, arg1 int, arg2 query.WatchlistOptions) ([]*watchlist.Item, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchlistGet", arg0, arg1, arg2)
+	ret0, _ := ret[0].([]*watchlist.Item)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// WatchlistGet indicates an expected call of WatchlistGet.
+func (mr *MockServiceTxMockRecorder) WatchlistGet(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchlistGet", reflect.TypeOf((*MockServiceTx)(nil).WatchlistGet), arg0, arg1, arg2)
+}
+
+// WatchlistSetWatched mocks base method.
+func (m *MockServiceTx) WatchlistSetWatched(arg0 context.Context, arg1, arg2 int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WatchlistSetWatched", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WatchlistSetWatched indicates an expected call of WatchlistSetWatched.
+func (mr *MockServiceTxMockRecorder) WatchlistSetWatched(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchlistSetWatched", reflect.TypeOf((*MockServiceTx)(nil).WatchlistSetWatched), arg0, arg1, arg2)
 }

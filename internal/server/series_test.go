@@ -10,6 +10,7 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/search/searchtestutils"
 	"github.com/aria3ppp/watchlist-server/internal/server/request"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
@@ -41,7 +42,14 @@ func TestHandleSeriesGet(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
 
 	// series not found
 	e.Request(method, path).
@@ -105,6 +113,25 @@ func TestHandleSeriesesGetAll(t *testing.T) {
 	path := "/v1/authorized/series/"
 	method := http.MethodGet
 
+	// invalid query
+	e.Request(method, path).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
+
 	// no serieses
 	e.Request(method, path).
 		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
@@ -151,11 +178,12 @@ func TestHandleSeriesesGetAll(t *testing.T) {
 		require.NoError(err)
 	}
 
-	gotSerieses, total, err := appInstance.SeriesesGetAll(
-		ctx,
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
-	)
+	gotSerieses, total, err := appInstance.SeriesesGetAll(ctx, query.Options{
+		Offset:    0,
+		Limit:     config.Config.Pagination.PageSize.MaxValue,
+		SortField: models.SeriesColumns.ID,
+		SortOrder: request.SortOrderAsc,
+	})
 	require.NoError(err)
 
 	items := make([]*models.Series, len(gotSerieses))
@@ -195,6 +223,22 @@ func TestHandleSeriesCreate(t *testing.T) {
 	e := httpexpect.New(t, server.URL)
 	path := "/v1/authorized/series/"
 	method := http.MethodPost
+
+	// invalid request
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.SeriesCreateRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"title":        validation.ErrRequired,
+				"date_started": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// create series
 	seriesCreateReq := &dto.SeriesCreateRequest{
@@ -247,230 +291,6 @@ func TestHandleSeriesCreate(t *testing.T) {
 	)
 }
 
-func TestHandleSeriesCreate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/"
-	method := http.MethodPost
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateStarted struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		dateEnded struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Series.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Series.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateStarted: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Series.DateStarted.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Series.DateStarted.MinValue.Month,
-				),
-				config.Config.Validation.Series.DateStarted.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		dateEnded: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Series.DateEnded.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Series.DateEnded.MinValue.Month,
-				),
-				config.Config.Validation.Series.DateEnded.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.SeriesCreateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.SeriesCreateRequest{},
-			expErrors: validation.Errors{
-				"title":        validation.ErrRequired,
-				"date_started": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.SeriesCreateRequest{
-				Title:        "",
-				Descriptions: null.StringFrom(""),
-				DateStarted:  time.Time{},
-				DateEnded:    null.TimeFrom(time.Time{}),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"title":        validation.ErrRequired,
-				"descriptions": validation.ErrRequired,
-				"date_started": validation.ErrRequired,
-				"date_ended":   validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.SeriesCreateRequest{
-				Title: testDatas.title.length.shorterThanMin,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateStarted: testDatas.dateStarted.lesserThanMinValue,
-				DateEnded: null.TimeFrom(
-					testDatas.dateEnded.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Title.MinLength,
-						"max": config.Config.Validation.Series.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Descriptions.MinLength,
-						"max": config.Config.Validation.Series.Descriptions.MaxLength,
-					},
-				),
-				"date_started": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Series.DateStarted.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Series.DateStarted.MinValue.Month,
-							),
-							config.Config.Validation.Series.DateStarted.MinValue.Day,
-						),
-					},
-				),
-				"date_ended": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Series.DateEnded.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Series.DateEnded.MinValue.Month,
-							),
-							config.Config.Validation.Series.DateEnded.MinValue.Day,
-						),
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.SeriesCreateRequest{
-				Title: testDatas.title.length.longerThanMax,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateStarted: testDatas.dateStarted.greaterThanMaxValue,
-				DateEnded: null.TimeFrom(
-					testDatas.dateEnded.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Title.MinLength,
-						"max": config.Config.Validation.Series.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Descriptions.MinLength,
-						"max": config.Config.Validation.Series.Descriptions.MaxLength,
-					},
-				),
-				"date_started": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"date_ended": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleSeriesUpdate(t *testing.T) {
 	ctx := context.Background()
 
@@ -490,7 +310,35 @@ func TestHandleSeriesUpdate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.SeriesUpdateRequest{Title: null.StringFrom("t")}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"title": validation.ErrLengthOutOfRange.SetParams(
+					map[string]any{
+						"min": config.Config.Validation.Series.Title.MinLength,
+						"max": config.Config.Validation.Series.Title.MaxLength,
+					},
+				),
+			}.Error(),
+		))
 
 	// series not found
 	e.Request(method, path).
@@ -628,228 +476,6 @@ func TestHandleSeriesUpdate(t *testing.T) {
 	}
 }
 
-func TestHandleSeriesUpdate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/{id}"
-	method := http.MethodPatch
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateStarted struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		dateEnded struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Series.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Series.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateStarted: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Series.DateStarted.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Series.DateStarted.MinValue.Month,
-				),
-				config.Config.Validation.Series.DateStarted.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		dateEnded: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Series.DateEnded.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Series.DateEnded.MinValue.Month,
-				),
-				config.Config.Validation.Series.DateEnded.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.SeriesUpdateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req: dto.SeriesUpdateRequest{
-				Title:        null.StringFrom(""),
-				Descriptions: null.StringFrom(""),
-				DateStarted:  null.TimeFrom(time.Time{}),
-				DateEnded:    null.TimeFrom(time.Time{}),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"title":        validation.ErrRequired,
-				"descriptions": validation.ErrRequired,
-				"date_started": validation.ErrRequired,
-				"date_ended":   validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.SeriesUpdateRequest{
-				Title: null.StringFrom(
-					testDatas.title.length.shorterThanMin,
-				),
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateStarted: null.TimeFrom(
-					testDatas.dateStarted.lesserThanMinValue,
-				),
-				DateEnded: null.TimeFrom(
-					testDatas.dateEnded.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Title.MinLength,
-						"max": config.Config.Validation.Series.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Descriptions.MinLength,
-						"max": config.Config.Validation.Series.Descriptions.MaxLength,
-					},
-				),
-				"date_started": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Series.DateStarted.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Series.DateStarted.MinValue.Month,
-							),
-							config.Config.Validation.Series.DateStarted.MinValue.Day,
-						),
-					},
-				),
-				"date_ended": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Series.DateEnded.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Series.DateEnded.MinValue.Month,
-							),
-							config.Config.Validation.Series.DateEnded.MinValue.Day,
-						),
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.SeriesUpdateRequest{
-				Title: null.StringFrom(testDatas.title.length.longerThanMax),
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateStarted: null.TimeFrom(
-					testDatas.dateStarted.greaterThanMaxValue,
-				),
-				DateEnded: null.TimeFrom(
-					testDatas.dateEnded.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Title.MinLength,
-						"max": config.Config.Validation.Series.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Series.Descriptions.MinLength,
-						"max": config.Config.Validation.Series.Descriptions.MaxLength,
-					},
-				),
-				"date_started": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"date_ended": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", 1).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleSeriesInvalidate(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -874,7 +500,30 @@ func TestHandleSeriesInvalidate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.InvalidationRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"invalidation": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// series not found
 	e.Request(method, path).
@@ -937,80 +586,6 @@ func TestHandleSeriesInvalidate(t *testing.T) {
 	)
 }
 
-func TestHandleSeriesInvalidate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/{id}"
-	method := http.MethodDelete
-
-	testCases := []struct {
-		name      string
-		req       dto.InvalidationRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.InvalidationRequest{},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.InvalidationRequest{
-				Invalidation: "i",
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.InvalidationRequest{
-				Invalidation: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Request.Invalidation.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", 1).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleSeriesAuditsGetAll(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -1030,7 +605,34 @@ func TestHandleSeriesAuditsGetAll(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid query
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
 
 	// series not found
 	e.Request(method, path).
@@ -1160,6 +762,21 @@ func TestHandleSeriesesSearch(t *testing.T) {
 	path := "/v1/authorized/series/search/"
 	method := http.MethodGet
 
+	// invalid query
+	e.Request(method, path).
+		WithQueryObject(request.SearchPaginationQuery{}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"query": validation.ErrRequired,
+			}.Error(),
+		))
+
 	// no serieses
 	e.Request(method, path).
 		WithQuery("query", "query").
@@ -1168,7 +785,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 		Status(http.StatusOK).
 		JSON().
 		Object().
-		Equal(response.Paginated(config.Config.Pagination.Page.MinValue, config.Config.Pagination.PageSize.DefaultValue, []*models.Series{}, 0))
+		Equal(response.Paginated(config.Config.Pagination.Page.MinValue, config.Config.Pagination.PageSize.DefaultValue, []any{}, 0))
 
 	// add serieses
 
@@ -1321,10 +938,13 @@ func TestHandleSeriesesSearch(t *testing.T) {
 	require.False(timeoutExceed, "timeout exceed")
 
 	gotSerieses, _, err := appInstance.SeriesesGetAll(
-		ctx,
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
-	)
+		ctx, query.Options{
+			Offset:    0,
+			Limit:     config.Config.Pagination.PageSize.MaxValue,
+			SortField: models.SeriesColumns.ID,
+			SortOrder: request.SortOrderAsc,
+		})
+
 	require.NoError(err)
 
 	items := make([]*models.Series, len(querySerieses))
@@ -1363,7 +983,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 	payloadItems := responseObject.
 		ValueEqual("status", response.StatusOK.String()).
 		ValueEqual("page", config.Config.Pagination.Page.MinValue).
-		ValueEqual("per_page", config.Config.Pagination.PageSize.DefaultValue).
+		ValueEqual("page_size", config.Config.Pagination.PageSize.DefaultValue).
 		ValueEqual("page_count", (len(items)+config.Config.Pagination.PageSize.DefaultValue-1)/config.Config.Pagination.PageSize.DefaultValue).
 		ValueEqual("total_items", len(items)).
 		Value("payload").Array()
@@ -1378,77 +998,4 @@ func TestHandleSeriesesSearch(t *testing.T) {
 
 	payloadItems.Length().Equal(len(items))
 	payloadItems.Contains(toAnySlice(items)...)
-}
-
-func TestHandleSeriesesSearch_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultUser)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/search/"
-	method := http.MethodGet
-
-	testCases := []struct {
-		name      string
-		query     request.SearchQuery
-		expErrors validation.Errors
-	}{
-		{
-			name:  "tc1",
-			query: request.SearchQuery{},
-			expErrors: validation.Errors{
-				"query": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			query: request.SearchQuery{
-				Query: "i",
-			},
-			expErrors: validation.Errors{
-				"query": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Search.Query.MinLength,
-						"max": config.Config.Validation.Request.Search.Query.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			query: request.SearchQuery{
-				Query: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Request.Search.Query.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"query": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Search.Query.MinLength,
-						"max": config.Config.Validation.Request.Search.Query.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithQuery("query", tc.query.Query).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidURLParameter,
-					tc.expErrors.Error(),
-				))
-		})
-	}
 }

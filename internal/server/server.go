@@ -93,16 +93,16 @@ func (s *Server) setHandlers() {
 	// By default first contributor to this resouce is the owner, and they are the only one (beside possible admins)
 	//  who can grant modification access to another user.
 
-	Movies := authorized.Group("/movie")
-	Movies.GET("/", s.HandleMoviesGetAll)
-	Movies.POST("/", s.HandleMovieCreate)
-	Movies.GET("/search/", s.HandleMoviesSearch)
+	movies := authorized.Group("/movie")
+	movies.GET("/", s.HandleMoviesGetAll)
+	movies.POST("/", s.HandleMovieCreate)
+	movies.GET("/search/", s.HandleMoviesSearch)
 
-	Movie := Movies.Group("/:id")
-	Movie.GET("/", s.HandleMovieGet)
-	Movie.PATCH("/", s.HandleMovieUpdate)
-	Movie.DELETE("/", s.HandleMovieInvalidate)
-	Movie.GET("/audits/", s.HandleMovieAuditsGetAll)
+	movie := movies.Group("/:id")
+	movie.GET("/", s.HandleMovieGet)
+	movie.PATCH("/", s.HandleMovieUpdate)
+	movie.DELETE("/", s.HandleMovieInvalidate)
+	movie.GET("/audits/", s.HandleMovieAuditsGetAll)
 
 	serieses := authorized.Group("/series")
 	serieses.GET("/", s.HandleSeriesesGetAll)
@@ -128,6 +128,12 @@ func (s *Server) setHandlers() {
 	episode.PATCH("/", s.HandleEpisodeUpdate)
 	episode.DELETE("/", s.HandleEpisodeInvalidate)
 	episode.GET("/audits/", s.HandleEpisodeAuditsGetAll)
+
+	watchlist := authorized.Group("/watchlist")
+	watchlist.GET("/", s.HandleWatchlistGet)
+	watchlist.POST("/add/", s.HandleWatchlistAdd)
+	watchlist.DELETE("/:id/", s.HandleWatchlistDelete)
+	watchlist.PATCH("/:id/", s.HandleWatchlistSetWatched)
 }
 
 func (s *Server) GetHandler() http.Handler {

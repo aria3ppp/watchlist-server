@@ -267,15 +267,18 @@ var FilmWhere = struct {
 var FilmRels = struct {
 	ContributingUser string
 	Series           string
+	Watchfilms       string
 }{
 	ContributingUser: "ContributingUser",
 	Series:           "Series",
+	Watchfilms:       "Watchfilms",
 }
 
 // filmR is where relationships are stored.
 type filmR struct {
-	ContributingUser *User   `boil:"ContributingUser" json:"ContributingUser" toml:"ContributingUser" yaml:"ContributingUser"`
-	Series           *Series `boil:"Series" json:"Series" toml:"Series" yaml:"Series"`
+	ContributingUser *User          `boil:"ContributingUser" json:"ContributingUser" toml:"ContributingUser" yaml:"ContributingUser"`
+	Series           *Series        `boil:"Series" json:"Series" toml:"Series" yaml:"Series"`
+	Watchfilms       WatchfilmSlice `boil:"Watchfilms" json:"Watchfilms" toml:"Watchfilms" yaml:"Watchfilms"`
 }
 
 // NewStruct creates a new relationship struct
@@ -295,6 +298,13 @@ func (r *filmR) GetSeries() *Series {
 		return nil
 	}
 	return r.Series
+}
+
+func (r *filmR) GetWatchfilms() WatchfilmSlice {
+	if r == nil {
+		return nil
+	}
+	return r.Watchfilms
 }
 
 // filmL is where Load methods for each relationship are stored.
@@ -608,6 +618,20 @@ func (o *Film) Series(mods ...qm.QueryMod) seriesQuery {
 	return Serieses(queryMods...)
 }
 
+// Watchfilms retrieves all the watchfilm's Watchfilms with an executor.
+func (o *Film) Watchfilms(mods ...qm.QueryMod) watchfilmQuery {
+	var queryMods []qm.QueryMod
+	if len(mods) != 0 {
+		queryMods = append(queryMods, mods...)
+	}
+
+	queryMods = append(queryMods,
+		qm.Where("\"watchfilms\".\"film_id\"=?", o.ID),
+	)
+
+	return Watchfilms(queryMods...)
+}
+
 // LoadContributingUser allows an eager lookup of values, cached into the
 // loaded structs of the objects. This is for an N-1 relationship.
 func (filmL) LoadContributingUser(ctx context.Context, e boil.ContextExecutor, singular bool, maybeFilm interface{}, mods queries.Applicator) error {
@@ -852,6 +876,120 @@ func (filmL) LoadSeries(ctx context.Context, e boil.ContextExecutor, singular bo
 	return nil
 }
 
+// LoadWatchfilms allows an eager lookup of values, cached into the
+// loaded structs of the objects. This is for a 1-M or N-M relationship.
+func (filmL) LoadWatchfilms(ctx context.Context, e boil.ContextExecutor, singular bool, maybeFilm interface{}, mods queries.Applicator) error {
+	var slice []*Film
+	var object *Film
+
+	if singular {
+		var ok bool
+		object, ok = maybeFilm.(*Film)
+		if !ok {
+			object = new(Film)
+			ok = queries.SetFromEmbeddedStruct(&object, &maybeFilm)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", object, maybeFilm))
+			}
+		}
+	} else {
+		s, ok := maybeFilm.(*[]*Film)
+		if ok {
+			slice = *s
+		} else {
+			ok = queries.SetFromEmbeddedStruct(&slice, maybeFilm)
+			if !ok {
+				return errors.New(fmt.Sprintf("failed to set %T from embedded struct %T", slice, maybeFilm))
+			}
+		}
+	}
+
+	args := make([]interface{}, 0, 1)
+	if singular {
+		if object.R == nil {
+			object.R = &filmR{}
+		}
+		args = append(args, object.ID)
+	} else {
+	Outer:
+		for _, obj := range slice {
+			if obj.R == nil {
+				obj.R = &filmR{}
+			}
+
+			for _, a := range args {
+				if a == obj.ID {
+					continue Outer
+				}
+			}
+
+			args = append(args, obj.ID)
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	query := NewQuery(
+		qm.From(`watchfilms`),
+		qm.WhereIn(`watchfilms.film_id in ?`, args...),
+	)
+	if mods != nil {
+		mods.Apply(query)
+	}
+
+	results, err := query.QueryContext(ctx, e)
+	if err != nil {
+		return errors.Wrap(err, "failed to eager load watchfilms")
+	}
+
+	var resultSlice []*Watchfilm
+	if err = queries.Bind(results, &resultSlice); err != nil {
+		return errors.Wrap(err, "failed to bind eager loaded slice watchfilms")
+	}
+
+	if err = results.Close(); err != nil {
+		return errors.Wrap(err, "failed to close results in eager load on watchfilms")
+	}
+	if err = results.Err(); err != nil {
+		return errors.Wrap(err, "error occurred during iteration of eager loaded relations for watchfilms")
+	}
+
+	if len(watchfilmAfterSelectHooks) != 0 {
+		for _, obj := range resultSlice {
+			if err := obj.doAfterSelectHooks(ctx, e); err != nil {
+				return err
+			}
+		}
+	}
+	if singular {
+		object.R.Watchfilms = resultSlice
+		for _, foreign := range resultSlice {
+			if foreign.R == nil {
+				foreign.R = &watchfilmR{}
+			}
+			foreign.R.Film = object
+		}
+		return nil
+	}
+
+	for _, foreign := range resultSlice {
+		for _, local := range slice {
+			if local.ID == foreign.FilmID {
+				local.R.Watchfilms = append(local.R.Watchfilms, foreign)
+				if foreign.R == nil {
+					foreign.R = &watchfilmR{}
+				}
+				foreign.R.Film = local
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetContributingUser of the film to the related item.
 // Sets o.R.ContributingUser to related.
 // Adds o to related.R.ContributedFilms.
@@ -975,6 +1113,59 @@ func (o *Film) RemoveSeries(ctx context.Context, exec boil.ContextExecutor, rela
 		}
 		related.R.SeriesFilms = related.R.SeriesFilms[:ln-1]
 		break
+	}
+	return nil
+}
+
+// AddWatchfilms adds the given related objects to the existing relationships
+// of the film, optionally inserting them as new records.
+// Appends related to o.R.Watchfilms.
+// Sets related.R.Film appropriately.
+func (o *Film) AddWatchfilms(ctx context.Context, exec boil.ContextExecutor, insert bool, related ...*Watchfilm) error {
+	var err error
+	for _, rel := range related {
+		if insert {
+			rel.FilmID = o.ID
+			if err = rel.Insert(ctx, exec, boil.Infer()); err != nil {
+				return errors.Wrap(err, "failed to insert into foreign table")
+			}
+		} else {
+			updateQuery := fmt.Sprintf(
+				"UPDATE \"watchfilms\" SET %s WHERE %s",
+				strmangle.SetParamNames("\"", "\"", 1, []string{"film_id"}),
+				strmangle.WhereClause("\"", "\"", 2, watchfilmPrimaryKeyColumns),
+			)
+			values := []interface{}{o.ID, rel.ID}
+
+			if boil.IsDebug(ctx) {
+				writer := boil.DebugWriterFrom(ctx)
+				fmt.Fprintln(writer, updateQuery)
+				fmt.Fprintln(writer, values)
+			}
+			if _, err = exec.ExecContext(ctx, updateQuery, values...); err != nil {
+				return errors.Wrap(err, "failed to update foreign table")
+			}
+
+			rel.FilmID = o.ID
+		}
+	}
+
+	if o.R == nil {
+		o.R = &filmR{
+			Watchfilms: related,
+		}
+	} else {
+		o.R.Watchfilms = append(o.R.Watchfilms, related...)
+	}
+
+	for _, rel := range related {
+		if rel.R == nil {
+			rel.R = &watchfilmR{
+				Film: o,
+			}
+		} else {
+			rel.R.Film = o
+		}
 	}
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/app"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/repo/mock_repo"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
@@ -96,7 +97,7 @@ func TestEpisodeGet(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				EpisodeGet(
@@ -127,12 +128,16 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 	var (
 		ctx = context.Background()
 
-		seriesID = 1
-		offset   = 0
-		limit    = 50
+		seriesID     = 1
+		queryOptions = query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     50,
+		}
 
 		expEpisodes                    = []*models.Film{{Title: "episode"}}
 		expTotal                       = 1000
+		expSeriesGetError              = errors.New("SeriesGet error")
 		expEpisodesGetAllBySeriesError = errors.New(
 			"EpisodesGetAllBySeries error",
 		)
@@ -155,6 +160,12 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 	type Tx struct {
 		exp TxExp
 	}
+	type GetSeriesExp struct {
+		err error
+	}
+	type GetSeries struct {
+		exp GetSeriesExp
+	}
 	type GetAllBySeries struct {
 		exp GetAllBySeriesExp
 	}
@@ -169,6 +180,7 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 	type TestCase struct {
 		name           string
 		tx             Tx
+		getSeries      GetSeries
 		getAllBySeries GetAllBySeries
 		countBySeries  CountBySeries
 		exp            Exp
@@ -176,10 +188,53 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 
 	testCases := []TestCase{
 		{
+			name: "series not found",
+			tx: Tx{
+				exp: TxExp{
+					err: app.ErrNotFound,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: repo.ErrNoRecord,
+				},
+			},
+			exp: Exp{
+				episodes: nil,
+				total:    0,
+				err:      app.ErrNotFound,
+			},
+		},
+
+		{
+			name: "SeriesGet error",
+			tx: Tx{
+				exp: TxExp{
+					err: expSeriesGetError,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: expSeriesGetError,
+				},
+			},
+			exp: Exp{
+				episodes: nil,
+				total:    0,
+				err:      expSeriesGetError,
+			},
+		},
+
+		{
 			name: "EpisodesGetAllBySeries error",
 			tx: Tx{
 				exp: TxExp{
 					err: expEpisodesGetAllBySeriesError,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: nil,
 				},
 			},
 			getAllBySeries: GetAllBySeries{
@@ -200,6 +255,11 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 			tx: Tx{
 				exp: TxExp{
 					err: expEpisodesCountBySeriesError,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: nil,
 				},
 			},
 			getAllBySeries: GetAllBySeries{
@@ -228,6 +288,11 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 					err: nil,
 				},
 			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: nil,
+				},
+			},
 			getAllBySeries: GetAllBySeries{
 				exp: GetAllBySeriesExp{
 					episodes: expEpisodes,
@@ -255,7 +320,7 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -264,16 +329,23 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 				}).
 				Return(tc.tx.exp.err)
 
-			getAllCall := mockRepo.EXPECT().
-				EpisodesGetAllBySeries(ctx, seriesID, offset, limit).
-				Return(tc.getAllBySeries.exp.episodes, tc.getAllBySeries.exp.err).
+			getSeriesCall := mockRepo.EXPECT().
+				SeriesGet(ctx, seriesID).
+				Return(&models.Series{}, tc.getSeries.exp.err).
 				After(txCall)
 
-			if tc.getAllBySeries.exp.err == nil {
-				mockRepo.EXPECT().
-					EpisodesCountBySeries(ctx, seriesID).
-					Return(tc.countBySeries.exp.total, tc.countBySeries.exp.err).
-					After(getAllCall)
+			if tc.getSeries.exp.err == nil {
+				getAllCall := mockRepo.EXPECT().
+					EpisodesGetAllBySeries(ctx, seriesID, queryOptions).
+					Return(tc.getAllBySeries.exp.episodes, tc.getAllBySeries.exp.err).
+					After(getSeriesCall)
+
+				if tc.getAllBySeries.exp.err == nil {
+					mockRepo.EXPECT().
+						EpisodesCountBySeries(ctx, seriesID).
+						Return(tc.countBySeries.exp.total, tc.countBySeries.exp.err).
+						After(getAllCall)
+				}
 			}
 
 			app := app.NewApplication(mockRepo, nil, nil, nil)
@@ -281,8 +353,7 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 			episodes, total, err := app.EpisodesGetAllBySeries(
 				ctx,
 				seriesID,
-				offset,
-				limit,
+				queryOptions,
 			)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.episodes, episodes)
@@ -299,11 +370,15 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 
 		seriesID     = 1
 		seasonNumber = 1
-		offset       = 0
-		limit        = 50
+		queryOptions = query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     50,
+		}
 
 		expEpisodes                    = []*models.Film{{Title: "episode"}}
 		expTotal                       = 1000
+		expSeriesGetError              = errors.New("SeriesGet error")
 		expEpisodesGetAllBySeasonError = errors.New(
 			"EpisodesGetAllBySeason error",
 		)
@@ -326,6 +401,12 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 	type Tx struct {
 		exp TxExp
 	}
+	type GetSeriesExp struct {
+		err error
+	}
+	type GetSeries struct {
+		exp GetSeriesExp
+	}
 	type GetAllBySeason struct {
 		exp GetAllBySeasonExp
 	}
@@ -340,6 +421,7 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 	type TestCase struct {
 		name           string
 		tx             Tx
+		getSeries      GetSeries
 		getAllBySeason GetAllBySeason
 		countBySeason  CountBySeason
 		exp            Exp
@@ -347,10 +429,53 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 
 	testCases := []TestCase{
 		{
+			name: "series not found",
+			tx: Tx{
+				exp: TxExp{
+					err: app.ErrNotFound,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: repo.ErrNoRecord,
+				},
+			},
+			exp: Exp{
+				episodes: nil,
+				total:    0,
+				err:      app.ErrNotFound,
+			},
+		},
+
+		{
+			name: "SeriesGet error",
+			tx: Tx{
+				exp: TxExp{
+					err: expSeriesGetError,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: expSeriesGetError,
+				},
+			},
+			exp: Exp{
+				episodes: nil,
+				total:    0,
+				err:      expSeriesGetError,
+			},
+		},
+
+		{
 			name: "EpisodesGetAllBySeason error",
 			tx: Tx{
 				exp: TxExp{
 					err: expEpisodesGetAllBySeasonError,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: nil,
 				},
 			},
 			getAllBySeason: GetAllBySeason{
@@ -371,6 +496,11 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 			tx: Tx{
 				exp: TxExp{
 					err: expEpisodesCountBySeasonError,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
+					err: nil,
 				},
 			},
 			getAllBySeason: GetAllBySeason{
@@ -396,6 +526,11 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 			name: "ok",
 			tx: Tx{
 				exp: TxExp{
+					err: nil,
+				},
+			},
+			getSeries: GetSeries{
+				exp: GetSeriesExp{
 					err: nil,
 				},
 			},
@@ -426,7 +561,7 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -435,16 +570,23 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 				}).
 				Return(tc.tx.exp.err)
 
-			getAllCall := mockRepo.EXPECT().
-				EpisodesGetAllBySeason(ctx, seriesID, seasonNumber, offset, limit).
-				Return(tc.getAllBySeason.exp.episodes, tc.getAllBySeason.exp.err).
+			getSeriesCall := mockRepo.EXPECT().
+				SeriesGet(ctx, seriesID).
+				Return(&models.Series{}, tc.getSeries.exp.err).
 				After(txCall)
 
-			if tc.getAllBySeason.exp.err == nil {
-				mockRepo.EXPECT().
-					EpisodesCountBySeason(ctx, seriesID, seasonNumber).
-					Return(tc.countBySeason.exp.total, tc.countBySeason.exp.err).
-					After(getAllCall)
+			if tc.getSeries.exp.err == nil {
+				getAllCall := mockRepo.EXPECT().
+					EpisodesGetAllBySeason(ctx, seriesID, seasonNumber, queryOptions).
+					Return(tc.getAllBySeason.exp.episodes, tc.getAllBySeason.exp.err).
+					After(getSeriesCall)
+
+				if tc.getAllBySeason.exp.err == nil {
+					mockRepo.EXPECT().
+						EpisodesCountBySeason(ctx, seriesID, seasonNumber).
+						Return(tc.countBySeason.exp.total, tc.countBySeason.exp.err).
+						After(getAllCall)
+				}
 			}
 
 			app := app.NewApplication(mockRepo, nil, nil, nil)
@@ -453,8 +595,7 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 				ctx,
 				seriesID,
 				seasonNumber,
-				offset,
-				limit,
+				queryOptions,
 			)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.episodes, episodes)
@@ -599,7 +740,7 @@ func TestEpisodePut(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -781,7 +922,7 @@ func TestEpisodesPutAllBySeason(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -930,7 +1071,7 @@ func TestEpisodeUpdate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				EpisodeUpdate(ctx, seriesID, seasonNumber, episodeNumber, contributorID, episodeUpdateRequestToValidMap(req)).
@@ -1028,7 +1169,7 @@ func TestEpisodeInvalidate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				EpisodeInvalidate(ctx, seriesID, seasonNumber, episodeNumber, contributorID, req.Invalidation).
@@ -1125,7 +1266,7 @@ func TestEpisodesInvalidateAllBySeason(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				EpisodesInvalidateAllBySeason(ctx, seriesID, seasonNumber, contributorID, req.Invalidation).
@@ -1154,8 +1295,11 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 		seriesID      = 1
 		seasonNumber  = 1
 		episodeNumber = 1
-		offset        = 0
-		limit         = 50
+		queryOptions  = query.SortOrderOptions{
+			SortOrder: "desc",
+			Offset:    0,
+			Limit:     50,
+		}
 
 		expEpisode = &models.Film{
 			Title: "episode",
@@ -1347,7 +1491,7 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -1363,7 +1507,7 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 
 			if tc.episodeGet.exp.err == nil {
 				seriesAuditsGetAllCall := mockRepo.EXPECT().
-					EpisodeAuditsGetAll(ctx, seriesID, seasonNumber, episodeNumber, offset, limit).
+					EpisodeAuditsGetAll(ctx, seriesID, seasonNumber, episodeNumber, queryOptions).
 					Return(tc.episodeAuditsGetAll.exp.audits, tc.episodeAuditsGetAll.exp.err).
 					After(seriesGetCall)
 
@@ -1382,7 +1526,7 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 				seriesID,
 				seasonNumber,
 				episodeNumber,
-				offset, limit,
+				queryOptions,
 			)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.audits, audits)

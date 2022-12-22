@@ -6,7 +6,7 @@ import (
 )
 
 type IDPathParam struct {
-	ID int `param:"id"`
+	ID int `param:"id" json:"id"`
 }
 
 var _ validation.Validatable = IDPathParam{}
@@ -23,8 +23,8 @@ func (p IDPathParam) Validate() error {
 }
 
 type SeriesSeasonNumberPathParam struct {
-	SeriesID     int `param:"id"`
-	SeasonNumber int `param:"season_number"`
+	SeriesID     int `param:"id"            json:"id"`
+	SeasonNumber int `param:"season_number" json:"season_number"`
 }
 
 var _ validation.Validatable = SeriesSeasonNumberPathParam{}
@@ -47,9 +47,9 @@ func (p SeriesSeasonNumberPathParam) Validate() error {
 }
 
 type SeriesSeasonEpisodeNumberPathParam struct {
-	SeriesID      int `param:"id"`
-	SeasonNumber  int `param:"season_number"`
-	EpisodeNumber int `param:"episode_number"`
+	SeriesID      int `param:"id"             json:"id"`
+	SeasonNumber  int `param:"season_number"  json:"season_number"`
+	EpisodeNumber int `param:"episode_number" json:"episode_number"`
 }
 
 var _ validation.Validatable = SeriesSeasonEpisodeNumberPathParam{}

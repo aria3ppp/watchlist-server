@@ -3,12 +3,14 @@ package app_test
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	_ "unsafe"
 
 	"github.com/aria3ppp/watchlist-server/internal/app"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/repo/mock_repo"
 	"github.com/aria3ppp/watchlist-server/internal/search/mock_search"
@@ -95,7 +97,7 @@ func TestSeriesGet(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				SeriesGet(ctx, id).
@@ -116,8 +118,12 @@ func TestSeriesesGetAll(t *testing.T) {
 	var (
 		ctx = context.Background()
 
-		offset = 0
-		limit  = 50
+		queryOptions = query.Options{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortField: models.SeriesColumns.ID,
+			SortOrder: "asc",
+		}
 
 		expSerieses            = []*models.Series{{Title: "series"}}
 		expTotal               = 1000
@@ -239,7 +245,7 @@ func TestSeriesesGetAll(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -249,7 +255,7 @@ func TestSeriesesGetAll(t *testing.T) {
 				Return(tc.tx.exp.err)
 
 			getAllCall := mockRepo.EXPECT().
-				SeriesesGetAll(ctx, offset, limit).
+				SeriesesGetAll(ctx, queryOptions).
 				Return(tc.getAll.exp.serieses, tc.getAll.exp.err).
 				After(txCall)
 
@@ -262,7 +268,7 @@ func TestSeriesesGetAll(t *testing.T) {
 
 			app := app.NewApplication(mockRepo, nil, nil, nil)
 
-			serieses, total, err := app.SeriesesGetAll(ctx, offset, limit)
+			serieses, total, err := app.SeriesesGetAll(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.serieses, serieses)
 			require.Equal(tc.exp.total, total)
@@ -335,7 +341,7 @@ func TestSeriesCreate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				SeriesCreate(
@@ -447,7 +453,7 @@ func TestSeriesUpdate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				SeriesUpdate(ctx, seriesID, contributorID, seriesUpdateRequestToValidMap(req)).
@@ -601,7 +607,7 @@ func TestSeriesInvalidate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -641,9 +647,12 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 	var (
 		ctx = context.Background()
 
-		seriesID = 1
-		offset   = 0
-		limit    = 50
+		seriesID     = 1
+		queryOptions = query.SortOrderOptions{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortOrder: "desc",
+		}
 
 		expSeries = &models.Series{
 			ID:    seriesID,
@@ -836,7 +845,7 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			txCall := mockRepo.EXPECT().
 				Transaction(ctx, gomock.Any()).
@@ -852,7 +861,7 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 
 			if tc.seriesGet.exp.err == nil {
 				seriesAuditsGetAllCall := mockRepo.EXPECT().
-					SeriesAuditsGetAll(ctx, seriesID, offset, limit).
+					SeriesAuditsGetAll(ctx, seriesID, queryOptions).
 					Return(tc.seriesAuditsGetAll.exp.audits, tc.seriesAuditsGetAll.exp.err).
 					After(seriesGetCall)
 
@@ -869,7 +878,7 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 			audits, total, err := app.SeriesAuditsGetAll(
 				ctx,
 				seriesID,
-				offset, limit,
+				queryOptions,
 			)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.audits, audits)
@@ -884,9 +893,11 @@ func TestSeriesesSearch(t *testing.T) {
 	ctx := context.Background()
 
 	var (
-		query       = "query"
-		offset      = 0
-		limit       = 10
+		queryOptions = query.SearchOptions{
+			Query: "query",
+			From:  0,
+			Size:  10,
+		}
 		expError    = errors.New("error")
 		expSerieses = []*models.Series{{Title: "title"}}
 		expTotal    = 100
@@ -954,12 +965,12 @@ func TestSeriesesSearch(t *testing.T) {
 			mockSearch := mock_search.NewMockService(controller)
 
 			mockSearch.EXPECT().
-				SearchSerieses(ctx, query, offset, limit).
+				SearchSerieses(ctx, queryOptions).
 				Return(tc.search.exp.serieses, tc.exp.total, tc.search.exp.err)
 
 			app := app.NewApplication(nil, nil, mockSearch, nil)
 
-			series, total, err := app.SeriesesSearch(ctx, query, offset, limit)
+			series, total, err := app.SeriesesSearch(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.serieses, series)
 			require.Equal(tc.exp.total, total)

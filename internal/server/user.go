@@ -14,30 +14,19 @@ import (
 
 // GET /v1/authorized/user/:id/
 func (s *Server) HandleUserGet(c echo.Context) error {
-	// bind & validate params
-	var params request.IDPathParam
-	err := (&echo.DefaultBinder{}).BindPathParams(c, &params)
-	if err == nil {
-		err = params.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleUserGet: parameter binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidURLParameter),
-		)
+	// bind & validate id param
+	var param request.IDPathParam
+	if httpError := s.bindPath(c, &param); httpError != nil {
+		return httpError
 	}
 
 	// Read user
-	user, err := s.app.UserGet(c.Request().Context(), params.ID)
+	user, err := s.app.UserGet(c.Request().Context(), param.ID)
 	if err != nil {
 		if err == app.ErrNotFound {
 			s.logger.Info(
 				"server.HandleUserGet: user not found",
-				zap.Int("id", params.ID),
+				zap.Int("id", param.ID),
 			)
 			return echo.NewHTTPError(
 				http.StatusNotFound,
@@ -63,19 +52,8 @@ func (s *Server) HandleUserGet(c echo.Context) error {
 func (s *Server) HandleUserCreate(c echo.Context) error {
 	// bind & validate request
 	var req dto.UserCreateRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleUserCreate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
 	// Create user
@@ -110,19 +88,8 @@ func (s *Server) HandleUserCreate(c echo.Context) error {
 func (s *Server) HandleUserLogin(c echo.Context) error {
 	// bind & validate request
 	var req dto.UserLoginRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleLoginUser: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
 	// login
@@ -166,13 +133,11 @@ func (s *Server) HandleUserLogin(c echo.Context) error {
 	// return token
 	return c.JSON(
 		http.StatusOK,
-		response.OK(TokenPair{Access: accessToken, Refresh: refreshToken}),
+		response.OK(response.TokenPair{
+			Access:  accessToken,
+			Refresh: refreshToken,
+		}),
 	)
-}
-
-type TokenPair struct {
-	Access  string `json:"access_token"`
-	Refresh string `json:"refresh_token"`
 }
 
 //------------------------------------------------------------------------------
@@ -191,7 +156,7 @@ func (s *Server) HandleUserRefreshToken(c echo.Context) error {
 	}
 
 	// refresh token
-	refreshToken, err := s.app.UserRefreshToken(
+	newAccessToken, err := s.app.UserRefreshToken(
 		c.Request().Context(),
 		refreshToken,
 	)
@@ -218,7 +183,7 @@ func (s *Server) HandleUserRefreshToken(c echo.Context) error {
 	}
 
 	// return token
-	return c.JSON(http.StatusOK, response.OK(refreshToken))
+	return c.JSON(http.StatusOK, response.OK(newAccessToken))
 }
 
 //------------------------------------------------------------------------------
@@ -227,36 +192,17 @@ func (s *Server) HandleUserRefreshToken(c echo.Context) error {
 func (s *Server) HandleUserUpdate(c echo.Context) error {
 	// bind & validate request
 	var req dto.UserUpdateRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleUserUpdate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	// payload must exists
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleUserUpdate: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
 	// Update user
-	err = s.app.UserUpdate(c.Request().Context(), payload.UserID, &req)
+	err := s.app.UserUpdate(c.Request().Context(), payload.UserID, &req)
 	if err != nil {
 		if err == app.ErrNotFound {
 			s.logger.Info(
@@ -288,36 +234,17 @@ func (s *Server) HandleUserUpdate(c echo.Context) error {
 func (s *Server) HandleUserEmailUpdate(c echo.Context) error {
 	// bind & validate request
 	var req dto.UserEmailUpdateRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleUserEmailUpdate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	// payload must exists
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleUserEmailUpdate: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
 	// Change user email
-	err = s.app.UserEmailUpdate(c.Request().Context(), payload.UserID, &req)
+	err := s.app.UserEmailUpdate(c.Request().Context(), payload.UserID, &req)
 	if err != nil {
 		if err == app.ErrNotFound {
 			s.logger.Info(
@@ -350,36 +277,17 @@ func (s *Server) HandleUserEmailUpdate(c echo.Context) error {
 func (s *Server) HandleUserPasswordUpdate(c echo.Context) error {
 	// bind & validate request
 	var req dto.UserPasswordUpdateRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleUserPasswordUpdate: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	// payload must exists
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleUserPasswordUpdate: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
 	// Change user password
-	err = s.app.UserPasswordUpdate(
+	err := s.app.UserPasswordUpdate(
 		c.Request().Context(),
 		payload.UserID,
 		&req,
@@ -436,36 +344,17 @@ func (s *Server) HandleUserPasswordUpdate(c echo.Context) error {
 func (s *Server) HandleUserDelete(c echo.Context) error {
 	// bind & validate request
 	var req dto.UserDeleteRequest
-	err := (&echo.DefaultBinder{}).BindBody(c, &req)
-	if err == nil {
-		err = req.Validate()
-	}
-	if err != nil {
-		s.logger.Info(
-			"server.HandleUserDelete: request binding/validation failed",
-			zap.Error(err),
-		)
-		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusInvalidRequest, err.Error()),
-		)
+	if httpError := s.bindBody(c, &req); httpError != nil {
+		return httpError
 	}
 
-	// payload must exists
-	payload := FetchUserPayload(c)
-	if payload == nil {
-		s.logger.Error(
-			"server.HandleUserDelete: payload key not set on router context",
-			zap.String("payload key", PayloadKey),
-		)
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			response.Error(response.StatusInternalServerError),
-		)
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
 	}
 
-	// Delete email
-	err = s.app.UserDelete(c.Request().Context(), payload.UserID, &req)
+	// Delete user
+	err := s.app.UserDelete(c.Request().Context(), payload.UserID, &req)
 	if err != nil {
 		if err == app.ErrNotFound {
 			s.logger.Info(

@@ -9,10 +9,12 @@ var TableNames = struct {
 	Serieses      string
 	SeriesesAudit string
 	Users         string
+	Watchfilms    string
 }{
 	Films:         "films",
 	FilmsAudit:    "films_audit",
 	Serieses:      "serieses",
 	SeriesesAudit: "serieses_audit",
 	Users:         "users",
+	Watchfilms:    "watchfilms",
 }

@@ -15,4 +15,6 @@ func TestUpsert(t *testing.T) {
 	t.Run("SeriesesAudits", testSeriesesAuditsUpsert)
 
 	t.Run("Users", testUsersUpsert)
+
+	t.Run("Watchfilms", testWatchfilmsUpsert)
 }

@@ -650,6 +650,84 @@ func testUserToManyContributedSerieses(t *testing.T) {
 	}
 }
 
+func testUserToManyWatchfilms(t *testing.T) {
+	var err error
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a User
+	var b, c Watchfilm
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, true, userColumnsWithDefault...); err != nil {
+		t.Errorf("Unable to randomize User struct: %s", err)
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	if err = randomize.Struct(seed, &b, watchfilmDBTypes, false, watchfilmColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+	if err = randomize.Struct(seed, &c, watchfilmDBTypes, false, watchfilmColumnsWithDefault...); err != nil {
+		t.Fatal(err)
+	}
+
+	b.UserID = a.ID
+	c.UserID = a.ID
+
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	check, err := a.Watchfilms().All(ctx, tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bFound, cFound := false, false
+	for _, v := range check {
+		if v.UserID == b.UserID {
+			bFound = true
+		}
+		if v.UserID == c.UserID {
+			cFound = true
+		}
+	}
+
+	if !bFound {
+		t.Error("expected to find b")
+	}
+	if !cFound {
+		t.Error("expected to find c")
+	}
+
+	slice := UserSlice{&a}
+	if err = a.L.LoadWatchfilms(ctx, tx, false, (*[]*User)(&slice), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Watchfilms); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	a.R.Watchfilms = nil
+	if err = a.L.LoadWatchfilms(ctx, tx, true, &a, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(a.R.Watchfilms); got != 2 {
+		t.Error("number of eager loaded records wrong, got:", got)
+	}
+
+	if t.Failed() {
+		t.Logf("%#v", check)
+	}
+}
+
 func testUserToManyAddOpContributedFilms(t *testing.T) {
 	var err error
 
@@ -800,6 +878,81 @@ func testUserToManyAddOpContributedSerieses(t *testing.T) {
 		}
 	}
 }
+func testUserToManyAddOpWatchfilms(t *testing.T) {
+	var err error
+
+	ctx := context.Background()
+	tx := MustTx(boil.BeginTx(ctx, nil))
+	defer func() { _ = tx.Rollback() }()
+
+	var a User
+	var b, c, d, e Watchfilm
+
+	seed := randomize.NewSeed()
+	if err = randomize.Struct(seed, &a, userDBTypes, false, strmangle.SetComplement(userPrimaryKeyColumns, userColumnsWithoutDefault)...); err != nil {
+		t.Fatal(err)
+	}
+	foreigners := []*Watchfilm{&b, &c, &d, &e}
+	for _, x := range foreigners {
+		if err = randomize.Struct(seed, x, watchfilmDBTypes, false, strmangle.SetComplement(watchfilmPrimaryKeyColumns, watchfilmColumnsWithoutDefault)...); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := a.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = b.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+	if err = c.Insert(ctx, tx, boil.Infer()); err != nil {
+		t.Fatal(err)
+	}
+
+	foreignersSplitByInsertion := [][]*Watchfilm{
+		{&b, &c},
+		{&d, &e},
+	}
+
+	for i, x := range foreignersSplitByInsertion {
+		err = a.AddWatchfilms(ctx, tx, i != 0, x...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		first := x[0]
+		second := x[1]
+
+		if a.ID != first.UserID {
+			t.Error("foreign key was wrong value", a.ID, first.UserID)
+		}
+		if a.ID != second.UserID {
+			t.Error("foreign key was wrong value", a.ID, second.UserID)
+		}
+
+		if first.R.User != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+		if second.R.User != &a {
+			t.Error("relationship was not added properly to the foreign slice")
+		}
+
+		if a.R.Watchfilms[i*2] != first {
+			t.Error("relationship struct slice not set to correct value")
+		}
+		if a.R.Watchfilms[i*2+1] != second {
+			t.Error("relationship struct slice not set to correct value")
+		}
+
+		count, err := a.Watchfilms().Count(ctx, tx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := int64((i + 1) * 2); count != want {
+			t.Error("want", want, "got", count)
+		}
+	}
+}
 
 func testUsersReload(t *testing.T) {
 	t.Parallel()
@@ -875,7 +1028,7 @@ func testUsersSelect(t *testing.T) {
 }
 
 var (
-	userDBTypes = map[string]string{`ID`: `integer`, `Email`: `character varying`, `HashedPassword`: `character varying`, `FirstName`: `character varying`, `LastName`: `character varying`, `Bio`: `character varying`, `Birthdate`: `date`, `Joindate`: `date`}
+	userDBTypes = map[string]string{`ID`: `integer`, `Email`: `character varying`, `HashedPassword`: `character varying`, `FirstName`: `character varying`, `LastName`: `character varying`, `Bio`: `character varying`, `Birthdate`: `date`, `Jointime`: `timestamp with time zone`}
 	_           = bytes.MinRead
 )
 

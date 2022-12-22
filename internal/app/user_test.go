@@ -97,7 +97,7 @@ func TestUserGet(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				UserGet(ctx, id).
@@ -307,7 +307,7 @@ func TestUserCreate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 			mockHasher := mock_hasher.NewMockInterface(controller)
 
 			txCall := mockRepo.EXPECT().
@@ -578,7 +578,7 @@ func TestUserLogin(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 			mockHasher := mock_hasher.NewMockInterface(controller)
 			mockTokenService := mock_token.NewMockService(controller)
 
@@ -841,7 +841,7 @@ func TestUserUpdate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				UserUpdate(ctx, userID, columns).
@@ -932,7 +932,7 @@ func TestUserEmailUpdate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
 				UserUpdate(ctx, userID, columns).
@@ -1229,7 +1229,7 @@ func TestUserPasswordUpdate(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 			mockHasher := mock_hasher.NewMockInterface(controller)
 
 			if tc.req.CurrentPassword != tc.req.NewPassword {
@@ -1477,7 +1477,7 @@ func TestUserDelete(t *testing.T) {
 			require := require.New(t)
 
 			controller := gomock.NewController(t)
-			mockRepo := mock_repo.NewMockRepositoryTx(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
 			mockHasher := mock_hasher.NewMockInterface(controller)
 
 			txCall := mockRepo.EXPECT().

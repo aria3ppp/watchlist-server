@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,8 @@ func TestMovieGet(t *testing.T) {
 
 	user := &models.User{Email: "email"}
 	err := r.UserCreate(ctx, user)
+	require.NoError(err)
+
 	movie := &models.Film{
 		Title:        "movie",
 		DateReleased: testutils.Date(2000, 1, 1),
@@ -66,13 +69,17 @@ func TestMoviesGetAll(t *testing.T) {
 	err := r.UserCreate(ctx, user)
 	require.NoError(err)
 
+	queryOptions := query.Options{
+		Offset:    0,
+		Limit:     math.MaxInt,
+		SortField: models.FilmColumns.ID,
+		SortOrder: "asc",
+	}
+
 	// first there's no movie
 
-	fetchedMovies, err := r.MoviesGetAll(
-		ctx,
-		0,
-		math.MaxInt,
-	)
+	fetchedMovies, err := r.MoviesGetAll(ctx, queryOptions)
+	require.NoError(err)
 	require.Equal(0, len(fetchedMovies))
 
 	// insert movies
@@ -102,15 +109,13 @@ func TestMoviesGetAll(t *testing.T) {
 
 	for _, m := range movies {
 		err = r.MovieCreate(ctx, user.ID, m)
+		require.NoError(err)
 	}
 
 	// fetch movies
 
-	fetchedMovies, err = r.MoviesGetAll(
-		ctx,
-		0,
-		math.MaxInt,
-	)
+	fetchedMovies, err = r.MoviesGetAll(ctx, queryOptions)
+	require.NoError(err)
 	require.Equal(len(movies), len(fetchedMovies))
 
 	// MoviesGetAll records are order by id by default
@@ -139,6 +144,7 @@ func TestMoviesCount(t *testing.T) {
 	// first there's no movie
 
 	nMovies, err := r.MoviesCount(ctx)
+	require.NoError(err)
 	require.Equal(0, nMovies)
 
 	// insert movies
@@ -153,11 +159,13 @@ func TestMoviesCount(t *testing.T) {
 
 	for _, m := range movies {
 		err = r.MovieCreate(ctx, user.ID, m)
+		require.NoError(err)
 	}
 
 	// count movies
 
 	nMovies, err = r.MoviesCount(ctx)
+	require.NoError(err)
 	require.Equal(len(movies), nMovies)
 }
 
@@ -172,6 +180,8 @@ func TestMovieCreate(t *testing.T) {
 
 	user := &models.User{Email: "email"}
 	err := r.UserCreate(ctx, user)
+	require.NoError(err)
+
 	movie := &models.Film{
 		Title:        "movie",
 		DateReleased: testutils.Date(2000, 1, 1),
@@ -180,6 +190,7 @@ func TestMovieCreate(t *testing.T) {
 	// first there's no movie
 
 	nMovies, err := r.MoviesCount(ctx)
+	require.NoError(err)
 	require.Equal(0, nMovies)
 
 	// create a movie
@@ -215,6 +226,8 @@ func TestMovieUpdate(t *testing.T) {
 
 	user := &models.User{Email: "email"}
 	err := r.UserCreate(ctx, user)
+	require.NoError(err)
+
 	movie := &models.Film{
 		Title:        "movie",
 		DateReleased: testutils.Date(2000, 1, 1),
@@ -279,9 +292,13 @@ func TestMovieUpdate(t *testing.T) {
 	audits, err := r.MovieAuditsGetAll(
 		ctx,
 		movie.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortOrder: "desc",
+		},
 	)
+	require.NoError(err)
 	require.Equal(1, len(audits))
 
 	testutils.SetTimeLocation(
@@ -315,6 +332,7 @@ func TestMovieInvalidate(t *testing.T) {
 
 	user := &models.User{Email: "email"}
 	err := r.UserCreate(ctx, user)
+	require.NoError(err)
 	movie := &models.Film{
 		Title:        "movie",
 		DateReleased: testutils.Date(2000, 1, 1),
@@ -341,6 +359,7 @@ func TestMovieInvalidate(t *testing.T) {
 	// check invalidated
 
 	invalidatedMovie, err := r.MovieGet(ctx, movie.ID)
+	require.NoError(err)
 	require.Equal(null.StringFrom(invalidation), invalidatedMovie.Invalidation)
 
 	// check invalidated movie audited
@@ -348,9 +367,13 @@ func TestMovieInvalidate(t *testing.T) {
 	audits, err := r.MovieAuditsGetAll(
 		ctx,
 		movie.ID,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			Offset:    0,
+			Limit:     math.MaxInt,
+			SortOrder: "desc",
+		},
 	)
+	require.NoError(err)
 	require.Equal(1, len(audits))
 
 	testutils.SetTimeLocation(
@@ -386,8 +409,6 @@ func TestMovieAuditsGetAll(t *testing.T) {
 
 	user := &models.User{Email: "email"}
 	err := r.UserCreate(ctx, user)
-	series := &models.Series{Title: "series"}
-	err = r.SeriesCreate(ctx, user.ID, series)
 	require.NoError(err)
 
 	movie := &models.Film{
@@ -397,14 +418,16 @@ func TestMovieAuditsGetAll(t *testing.T) {
 	err = r.MovieCreate(ctx, user.ID, movie)
 	require.NoError(err)
 
+	queryOptions := query.SortOrderOptions{
+		Offset:    0,
+		Limit:     math.MaxInt,
+		SortOrder: "desc",
+	}
+
 	// first there's no audits
 
-	audits, err := r.MovieAuditsGetAll(
-		ctx,
-		movie.ID,
-		0,
-		math.MaxInt,
-	)
+	audits, err := r.MovieAuditsGetAll(ctx, movie.ID, queryOptions)
+	require.NoError(err)
 	require.Equal(0, len(audits))
 
 	// audits for movie
@@ -436,16 +459,13 @@ func TestMovieAuditsGetAll(t *testing.T) {
 			user.ID,
 			mnu,
 		)
+		require.NoError(err)
 	}
 
 	// fetch audits
 
-	audits, err = r.MovieAuditsGetAll(
-		ctx,
-		movie.ID,
-		0,
-		math.MaxInt,
-	)
+	audits, err = r.MovieAuditsGetAll(ctx, movie.ID, queryOptions)
+	require.NoError(err)
 	require.Equal(len(movieNewUpdates), len(audits))
 
 	testutils.SetTimeLocation(
@@ -532,8 +552,6 @@ func TestMovieAuditsCount(t *testing.T) {
 
 	user := &models.User{Email: "email"}
 	err := r.UserCreate(ctx, user)
-	series := &models.Series{Title: "series"}
-	err = r.SeriesCreate(ctx, user.ID, series)
 	require.NoError(err)
 
 	movie := &models.Film{Title: "movie"}
@@ -547,6 +565,7 @@ func TestMovieAuditsCount(t *testing.T) {
 	// first there's no audits
 
 	auditsCount, err := r.MovieAuditsCount(ctx, movie.ID)
+	require.NoError(err)
 	require.Equal(0, auditsCount)
 
 	// audits for movie
@@ -568,10 +587,12 @@ func TestMovieAuditsCount(t *testing.T) {
 				models.FilmColumns.Title: mnv.Title,
 			},
 		)
+		require.NoError(err)
 	}
 
 	// count audits
 
 	auditsCount, err = r.MovieAuditsCount(ctx, movie.ID)
+	require.NoError(err)
 	require.Equal(len(movieNewVersions), auditsCount)
 }

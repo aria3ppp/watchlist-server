@@ -5,6 +5,8 @@ import (
 	"database/sql"
 
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
+	"github.com/aria3ppp/watchlist-server/internal/watchlist"
 )
 
 //go:generate mockgen -destination mock_repo/mock_service.go . ServiceTx
@@ -30,7 +32,7 @@ type Service interface {
 	SeriesGet(ctx context.Context, id int) (*models.Series, error)
 	SeriesesGetAll(
 		ctx context.Context,
-		offset, limit int,
+		queryOptions query.Options,
 	) ([]*models.Series, error)
 	SeriesesCount(ctx context.Context) (int, error)
 	SeriesCreate(
@@ -53,7 +55,7 @@ type Service interface {
 	SeriesAuditsGetAll(
 		ctx context.Context,
 		id int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) ([]*models.SeriesesAudit, error)
 	SeriesAuditsCount(
 		ctx context.Context,
@@ -72,13 +74,13 @@ type Service interface {
 	EpisodesGetAllBySeries(
 		ctx context.Context,
 		seriesID int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) ([]*models.Film, error)
 	EpisodesGetAllBySeason(
 		ctx context.Context,
 		seriesID int,
 		seasonNumber int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) ([]*models.Film, error)
 	EpisodesCountBySeries(
 		ctx context.Context,
@@ -128,31 +130,11 @@ type Service interface {
 	EpisodeAuditsGetAll(
 		ctx context.Context,
 		seriesID, seasonNumber, episodeNumber int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) ([]*models.FilmsAudit, error)
 	EpisodeAuditsCount(
 		ctx context.Context,
 		seriesID, seasonNumber, episodeNumber int,
-	) (int, error)
-	EpisodesAuditsGetAllBySeason(
-		ctx context.Context,
-		seriesID int,
-		seasonNumber int,
-		offset, limit int,
-	) ([]*models.FilmsAudit, error)
-	EpisodesAuditsCountBySeason(
-		ctx context.Context,
-		seriesID int,
-		seasonNumber int,
-	) (int, error)
-	EpisodesAuditsGetAllBySeries(
-		ctx context.Context,
-		seriesID int,
-		offset, limit int,
-	) ([]*models.FilmsAudit, error)
-	EpisodesAuditsCountBySeries(
-		ctx context.Context,
-		seriesID int,
 	) (int, error)
 
 	// Movie
@@ -162,7 +144,7 @@ type Service interface {
 	) (*models.Film, error)
 	MoviesGetAll(
 		ctx context.Context,
-		offset, limit int,
+		queryOptions query.Options,
 	) ([]*models.Film, error)
 	MoviesCount(ctx context.Context) (int, error)
 	MovieCreate(
@@ -185,12 +167,42 @@ type Service interface {
 	MovieAuditsGetAll(
 		ctx context.Context,
 		id int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) ([]*models.FilmsAudit, error)
 	MovieAuditsCount(
 		ctx context.Context,
 		id int,
 	) (int, error)
+
+	// Film
+	FilmExists(ctx context.Context, filmID int) error
+
+	// Watchlist
+	WatchlistGet(
+		ctx context.Context,
+		userID int,
+		queryOptions query.WatchlistOptions,
+	) (watchlist []*watchlist.Item, err error)
+	WatchlistCount(
+		ctx context.Context,
+		userID int,
+		timeWatchedWhereClause string,
+	) (count int, err error)
+	WatchlistAdd(
+		ctx context.Context,
+		userID int,
+		filmID int,
+	) (watchID int, err error)
+	WatchlistDelete(
+		ctx context.Context,
+		userID int,
+		watchID int,
+	) error
+	WatchlistSetWatched(
+		ctx context.Context,
+		userID int,
+		watchID int,
+	) error
 }
 
 type Repository struct {

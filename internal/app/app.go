@@ -6,9 +6,11 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/hasher"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/search"
 	"github.com/aria3ppp/watchlist-server/internal/token"
+	"github.com/aria3ppp/watchlist-server/internal/watchlist"
 )
 
 // remove leading comment symbols to enable mocking
@@ -54,7 +56,7 @@ type Service interface {
 	MovieGet(ctx context.Context, id int) (*models.Film, error)
 	MoviesGetAll(
 		ctx context.Context,
-		offset, limit int,
+		queryOptions query.Options,
 	) (movies []*models.Film, total int, err error)
 	MovieCreate(
 		ctx context.Context,
@@ -76,19 +78,18 @@ type Service interface {
 	MovieAuditsGetAll(
 		ctx context.Context,
 		id int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) (audits []*models.FilmsAudit, total int, err error)
 	MoviesSearch(
 		ctx context.Context,
-		query string,
-		offset, limit int,
+		queryOptions query.SearchOptions,
 	) (results []*models.Film, total int, err error)
 
 	// Series
 	SeriesGet(ctx context.Context, id int) (*models.Series, error)
 	SeriesesGetAll(
 		ctx context.Context,
-		offset, limit int,
+		queryOptions query.Options,
 	) (series []*models.Series, total int, err error)
 	SeriesCreate(
 		ctx context.Context,
@@ -110,12 +111,11 @@ type Service interface {
 	SeriesAuditsGetAll(
 		ctx context.Context,
 		id int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) (audits []*models.SeriesesAudit, total int, err error)
 	SeriesesSearch(
 		ctx context.Context,
-		query string,
-		offset, limit int,
+		queryOptions query.SearchOptions,
 	) (results []*models.Series, total int, err error)
 
 	// Episode
@@ -126,13 +126,13 @@ type Service interface {
 	EpisodesGetAllBySeries(
 		ctx context.Context,
 		seriesID int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) (episodes []*models.Film, total int, err error)
 	EpisodesGetAllBySeason(
 		ctx context.Context,
 		seriesID int,
 		seasonNumber int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) (episodes []*models.Film, total int, err error)
 	EpisodePut(
 		ctx context.Context,
@@ -168,8 +168,30 @@ type Service interface {
 	EpisodeAuditsGetAll(
 		ctx context.Context,
 		seriesID, seasonNumber, episodeNumber int,
-		offset, limit int,
+		queryOptions query.SortOrderOptions,
 	) (audits []*models.FilmsAudit, total int, err error)
+
+	// Watchlist
+	WatchlistGet(
+		ctx context.Context,
+		userID int,
+		queryOptions query.WatchlistOptions,
+	) (watchlist []*watchlist.Item, total int, err error)
+	WatchlistAdd(
+		ctx context.Context,
+		userID int,
+		filmID int,
+	) (watchID int, err error)
+	WatchlistDelete(
+		ctx context.Context,
+		userID int,
+		watchID int,
+	) error
+	WatchlistSetWatched(
+		ctx context.Context,
+		userID int,
+		watchID int,
+	) error
 }
 
 type Application struct {

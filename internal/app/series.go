@@ -5,6 +5,7 @@ import (
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 )
 
@@ -24,13 +25,13 @@ func (a *Application) SeriesGet(
 
 func (a *Application) SeriesesGetAll(
 	ctx context.Context,
-	offset, limit int,
+	queryOptions query.Options,
 ) (series []*models.Series, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
 		func(ctx context.Context, tx repo.Service) error {
 			var err error
-			series, err = tx.SeriesesGetAll(ctx, offset, limit)
+			series, err = tx.SeriesesGetAll(ctx, queryOptions)
 			if err != nil {
 				return err
 			}
@@ -143,7 +144,7 @@ func (a *Application) SeriesInvalidate(
 func (a *Application) SeriesAuditsGetAll(
 	ctx context.Context,
 	id int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) (audits []*models.SeriesesAudit, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
@@ -157,12 +158,7 @@ func (a *Application) SeriesAuditsGetAll(
 				return err
 			}
 			// fetch audits
-			audits, err = tx.SeriesAuditsGetAll(
-				ctx,
-				id,
-				offset,
-				limit,
-			)
+			audits, err = tx.SeriesAuditsGetAll(ctx, id, queryOptions)
 			if err != nil {
 				return err
 			}
@@ -179,8 +175,7 @@ func (a *Application) SeriesAuditsGetAll(
 
 func (a *Application) SeriesesSearch(
 	ctx context.Context,
-	query string,
-	offset, limit int,
+	queryOptions query.SearchOptions,
 ) (results []*models.Series, total int, err error) {
-	return a.search.SearchSerieses(ctx, query, offset, limit)
+	return a.search.SearchSerieses(ctx, queryOptions)
 }

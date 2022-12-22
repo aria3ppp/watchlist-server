@@ -38,7 +38,11 @@ call add_contribution_and_invalidation_columns(
 call create_audit_table(
 	p_table => 'films',
 	p_audit_table_name => 'films_audit',
-	p_audit_table_pk_columns_order_sep_by_comma => 'id, contributed_by, contributed_at'
+
+	p_audit_table_index_name => 'films_audit_idx_contributed_at',
+	p_audit_table_index_column_name => 'contributed_at',
+
+	p_audit_table_pk_columns_list_sep_by_comma => 'id, contributed_by, contributed_at'
 );
 
 call build_trigger_audit_on_update(
@@ -65,14 +69,6 @@ call build_trigger_audit_on_update(
 ALTER TABLE films
 ADD CONSTRAINT films_unique_episode_cnst
 UNIQUE (series_id, season_number, episode_number);
-
--- -- unique movies
--- -- it is so wrong!
--- -- imagine a movie can replace an episode with the same title!
--- -- so commenting out for more discussion in the future
--- ALTER TABLE films
--- ADD CONSTRAINT films_unique_cnst
--- UNIQUE (title, date_released);
 
 -- create index on title and descriptions
 CREATE INDEX films_idx_title ON films (title);

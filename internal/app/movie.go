@@ -5,6 +5,7 @@ import (
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 )
 
@@ -24,13 +25,13 @@ func (a *Application) MovieGet(
 
 func (a *Application) MoviesGetAll(
 	ctx context.Context,
-	offset, limit int,
+	queryOptions query.Options,
 ) (movies []*models.Film, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
 		func(ctx context.Context, tx repo.Service) error {
 			var err error
-			movies, err = tx.MoviesGetAll(ctx, offset, limit)
+			movies, err = tx.MoviesGetAll(ctx, queryOptions)
 			if err != nil {
 				return err
 			}
@@ -126,7 +127,7 @@ func (a *Application) MovieInvalidate(
 func (a *Application) MovieAuditsGetAll(
 	ctx context.Context,
 	id int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) (audits []*models.FilmsAudit, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
@@ -140,7 +141,7 @@ func (a *Application) MovieAuditsGetAll(
 				return err
 			}
 			// fetch audits
-			audits, err = tx.MovieAuditsGetAll(ctx, id, offset, limit)
+			audits, err = tx.MovieAuditsGetAll(ctx, id, queryOptions)
 			if err != nil {
 				return err
 			}
@@ -157,8 +158,7 @@ func (a *Application) MovieAuditsGetAll(
 
 func (a *Application) MoviesSearch(
 	ctx context.Context,
-	query string,
-	offset, limit int,
+	queryOptions query.SearchOptions,
 ) (results []*models.Film, total int, err error) {
-	return a.search.SearchMovies(ctx, query, offset, limit)
+	return a.search.SearchMovies(ctx, queryOptions)
 }

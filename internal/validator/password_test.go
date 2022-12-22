@@ -1,12 +1,13 @@
-package validator
+package validator_test
 
 import (
 	"testing"
 
+	"github.com/aria3ppp/watchlist-server/internal/validator"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPassword(t *testing.T) {
+func TestIsPassword(t *testing.T) {
 	testCases := []struct {
 		name                           string
 		nums, lowers, uppers, specials int
@@ -30,10 +31,15 @@ func TestPassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			require := require.New(t)
 
-			r := Password(tc.nums, tc.lowers, tc.uppers, tc.specials)
+			r := validator.IsPassword().
+				Numbers(tc.nums).
+				LowerLetters(tc.lowers).
+				UpperLetters(tc.uppers).
+				SpecialChars(tc.specials)
+
 			err := r.Validate(tc.passwd)
 			if tc.err {
-				expValidationError := ErrPasswordInvalid.SetParams(
+				expValidationError := validator.ErrInvalidPassword.SetParams(
 					map[string]any{
 						"num":     tc.nums,
 						"lower":   tc.lowers,

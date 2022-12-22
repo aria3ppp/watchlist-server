@@ -5,22 +5,6 @@ import (
 	"database/sql"
 )
 
-type noOpBeginTx struct {
-	*sql.Tx
-}
-
-var _ Executor = noOpBeginTx{}
-
-func (tx noOpBeginTx) BeginTx(
-	context.Context,
-	*sql.TxOptions,
-) (*sql.Tx, error) {
-	// intended no operation
-	// it is here just to satisfy type system to allow '*sql.Tx' as an 'Executor' to pass to 'TxRepository'
-	// but it is totally safe as the 'Repo' objest is downscaled to a 'Repository' object
-	return nil, nil
-}
-
 func (repo *Repository) Transaction(
 	ctx context.Context,
 	fn func(context.Context, Service) error,
@@ -43,4 +27,20 @@ func (repo *Repository) Transaction(
 	}()
 	err = fn(ctx, r)
 	return
+}
+
+type noOpBeginTx struct {
+	*sql.Tx
+}
+
+var _ Executor = noOpBeginTx{}
+
+func (tx noOpBeginTx) BeginTx(
+	context.Context,
+	*sql.TxOptions,
+) (*sql.Tx, error) {
+	// intended no operation:
+	// it is here just to satisfy type system to allow '*sql.Tx' as an 'Executor' to pass to 'NewRepository'.
+	// but it is totally safe as the 'ServiceTx' objest is down-scaled to a 'Service' object that have no 'BeginTx' method.
+	return nil, nil
 }

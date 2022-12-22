@@ -12,6 +12,8 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
+	"github.com/aria3ppp/watchlist-server/internal/server/request"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/gavv/httpexpect/v2"
@@ -48,7 +50,20 @@ func TestHandleEpisodeGet(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"episode_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
 
 	// episode not found
 	e.Request(method, path).
@@ -133,7 +148,44 @@ func TestHandleEpisodesGetAllBySeries(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid query
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
+
+	// series not found
+	e.Request(method, path).
+		WithPath("id", 999).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusNotFound).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusNotFound))
 
 	// no episodes
 	e.Request(method, path).
@@ -228,8 +280,11 @@ func TestHandleEpisodesGetAllBySeries(t *testing.T) {
 	gotEpisodes, total, err := appInstance.EpisodesGetAllBySeries(
 		ctx,
 		defaults.series.id,
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     config.Config.Pagination.PageSize.MaxValue,
+		},
 	)
 	require.NoError(err)
 
@@ -297,7 +352,49 @@ func TestHandleEpisodesGetAllBySeason(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid query
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
+
+	// series not found
+	e.Request(method, path).
+		WithPath("id", 999).
+		WithPath("se", seasonNumber).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusNotFound).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusNotFound))
 
 	// no episodes
 	e.Request(method, path).
@@ -355,8 +452,11 @@ func TestHandleEpisodesGetAllBySeason(t *testing.T) {
 		ctx,
 		defaults.series.id,
 		seasonNumber,
-		0,
-		config.Config.Pagination.PageSize.MaxValue,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     config.Config.Pagination.PageSize.MaxValue,
+		},
 	)
 	require.NoError(err)
 
@@ -424,7 +524,39 @@ func TestHandleEpisodePut(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"episode_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithPath("ep", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.EpisodePutRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"title":         validation.ErrRequired,
+				"date_released": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// series not found
 	e.Request(method, path).
@@ -488,220 +620,6 @@ func TestHandleEpisodePut(t *testing.T) {
 	)
 }
 
-func TestHandleEpisodePut_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultSeries)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/{id}/season/{se}/episode/{ep}/"
-	method := http.MethodPut
-
-	var (
-		seasonNumber  = 1
-		episodeNumber = 1
-	)
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateReleased struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		duration struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateReleased: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Film.DateReleased.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Film.DateReleased.MinValue.Month,
-				),
-				config.Config.Validation.Film.DateReleased.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		duration: struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}{
-			lesserThanMinValue:  config.Config.Validation.Film.Duraion.MinLength - 1,
-			greaterThanMaxValue: config.Config.Validation.Film.Duraion.MaxLength + 1,
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.EpisodePutRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.EpisodePutRequest{},
-			expErrors: validation.Errors{
-				"title":         validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.EpisodePutRequest{
-				Title:        "",
-				Descriptions: null.StringFrom(""),
-				DateReleased: time.Time{},
-				Duration:     null.IntFrom(0),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"title":         validation.ErrRequired,
-				"descriptions":  validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-				"duration":      validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.EpisodePutRequest{
-				Title: testDatas.title.length.shorterThanMin,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateReleased: testDatas.dateReleased.lesserThanMinValue,
-				Duration: null.IntFrom(
-					testDatas.duration.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Film.DateReleased.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Film.DateReleased.MinValue.Month,
-							),
-							config.Config.Validation.Film.DateReleased.MinValue.Day,
-						),
-					},
-				),
-				"duration": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MinLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc4",
-			req: dto.EpisodePutRequest{
-				Title: testDatas.title.length.longerThanMax,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateReleased: testDatas.dateReleased.greaterThanMaxValue,
-				Duration: null.IntFrom(
-					testDatas.duration.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"duration": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", defaults.series.id).
-				WithPath("se", seasonNumber).
-				WithPath("ep", episodeNumber).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleEpisodesPutAllBySeason(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -750,7 +668,34 @@ func TestHandleEpisodesPutAllBySeason(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.EpisodesPutAllBySeasonRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"episodes": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// series not found
 	e.Request(method, path).
@@ -783,8 +728,11 @@ func TestHandleEpisodesPutAllBySeason(t *testing.T) {
 		ctx,
 		defaults.series.id,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(episodePutAllReq.Episodes), total)
@@ -818,197 +766,6 @@ func TestHandleEpisodesPutAllBySeason(t *testing.T) {
 	}
 }
 
-func TestHandleEpisodesPutAllBySeason_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultSeries)
-	t.Cleanup(teardown)
-
-	e := httpexpect.New(t, server.URL)
-	path := "/v1/authorized/series/{id}/season/{se}/episode/"
-	method := http.MethodPut
-
-	seasonNumber := 1
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateReleased struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		duration struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateReleased: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Film.DateReleased.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Film.DateReleased.MinValue.Month,
-				),
-				config.Config.Validation.Film.DateReleased.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		duration: struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}{
-			lesserThanMinValue:  config.Config.Validation.Film.Duraion.MinLength - 1,
-			greaterThanMaxValue: config.Config.Validation.Film.Duraion.MaxLength + 1,
-		},
-	}
-
-	req := &dto.EpisodesPutAllBySeasonRequest{
-		Episodes: []*dto.EpisodePutRequest{
-			{},
-			{
-				Title:        "",
-				Descriptions: null.StringFrom(""),
-				DateReleased: time.Time{},
-				Duration:     null.IntFrom(0),
-			},
-			{
-				Title: testDatas.title.length.shorterThanMin,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateReleased: testDatas.dateReleased.lesserThanMinValue,
-				Duration: null.IntFrom(
-					testDatas.duration.lesserThanMinValue,
-				),
-			},
-			{
-				Title: testDatas.title.length.longerThanMax,
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateReleased: testDatas.dateReleased.greaterThanMaxValue,
-				Duration: null.IntFrom(
-					testDatas.duration.greaterThanMaxValue,
-				),
-			},
-		},
-	}
-
-	expError := validation.Errors{
-		"episodes": validation.Errors{
-			"0": validation.Errors{
-				"title":         validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-			},
-			"1": validation.Errors{
-				"title":         validation.ErrRequired,
-				"descriptions":  validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-				"duration":      validation.ErrRequired,
-			},
-			"2": validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Film.DateReleased.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Film.DateReleased.MinValue.Month,
-							),
-							config.Config.Validation.Film.DateReleased.MinValue.Day,
-						),
-					},
-				),
-				"duration": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MinLength,
-					},
-				),
-			},
-			"3": validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"duration": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	e.Request(method, path).
-		WithPath("id", defaults.series.id).
-		WithPath("se", seasonNumber).
-		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-		WithJSON(req).
-		Expect().
-		Status(http.StatusBadRequest).
-		JSON().
-		Equal(response.Error(
-			response.StatusInvalidRequest,
-			expError.Error(),
-		))
-}
-
 func TestHandleEpisodeUpdate(t *testing.T) {
 	ctx := context.Background()
 
@@ -1032,7 +789,43 @@ func TestHandleEpisodeUpdate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"episode_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithPath("ep", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(&dto.EpisodeUpdateRequest{Title: null.StringFrom("t")}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"title": validation.ErrLengthOutOfRange.SetParams(
+					map[string]any{
+						"min": config.Config.Validation.Film.Title.MinLength,
+						"max": config.Config.Validation.Film.Title.MaxLength,
+					},
+				),
+			}.Error(),
+		))
 
 	// episode not found
 	e.Request(method, path).
@@ -1192,217 +985,6 @@ func TestHandleEpisodeUpdate(t *testing.T) {
 	}
 }
 
-func TestHandleEpisodeUpdate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultSeries)
-	t.Cleanup(teardown)
-
-	var (
-		seasonNumber  = 1
-		episodeNumber = 1
-	)
-
-	path := "/v1/authorized/series/{id}/season/{se}/episode/{ep}/"
-	method := http.MethodPatch
-
-	timeNow := time.Now()
-
-	type Length struct {
-		shorterThanMin string
-		longerThanMax  string
-	}
-	testDatas := struct {
-		title struct {
-			length Length
-		}
-		descriptions struct {
-			length Length
-		}
-		dateReleased struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}
-		duration struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}
-	}{
-		title: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "t",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Title.MaxLength,
-				),
-			},
-		},
-		descriptions: struct{ length Length }{
-			length: Length{
-				shorterThanMin: "d",
-				longerThanMax: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Film.Descriptions.MaxLength,
-				),
-			},
-		},
-		dateReleased: struct {
-			lesserThanMinValue  time.Time
-			greaterThanMaxValue time.Time
-		}{
-			lesserThanMinValue: testutils.Date(
-				config.Config.Validation.Film.DateReleased.MinValue.Year-1,
-				time.Month(
-					config.Config.Validation.Film.DateReleased.MinValue.Month,
-				),
-				config.Config.Validation.Film.DateReleased.MinValue.Day,
-			),
-			greaterThanMaxValue: testutils.Date(
-				timeNow.Year(), timeNow.Month(), timeNow.Day(),
-			).Add(time.Hour),
-		},
-		duration: struct {
-			lesserThanMinValue  int
-			greaterThanMaxValue int
-		}{
-			lesserThanMinValue:  config.Config.Validation.Film.Duraion.MinLength - 1,
-			greaterThanMaxValue: config.Config.Validation.Film.Duraion.MaxLength + 1,
-		},
-	}
-
-	testCases := []struct {
-		name      string
-		req       dto.EpisodeUpdateRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req: dto.EpisodeUpdateRequest{
-				Title:        null.StringFrom(""),
-				Descriptions: null.StringFrom(""),
-				DateReleased: null.TimeFrom(time.Time{}),
-				Duration:     null.IntFrom(0),
-			},
-			// reauired if submitted (null.Valid == true)
-			expErrors: validation.Errors{
-				"title":         validation.ErrRequired,
-				"descriptions":  validation.ErrRequired,
-				"date_released": validation.ErrRequired,
-				"duration":      validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.EpisodeUpdateRequest{
-				Title: null.StringFrom(
-					testDatas.title.length.shorterThanMin,
-				),
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.shorterThanMin,
-				),
-				DateReleased: null.TimeFrom(
-					testDatas.dateReleased.lesserThanMinValue,
-				),
-				Duration: null.IntFrom(
-					testDatas.duration.lesserThanMinValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							config.Config.Validation.Film.DateReleased.MinValue.Year,
-							time.Month(
-								config.Config.Validation.Film.DateReleased.MinValue.Month,
-							),
-							config.Config.Validation.Film.DateReleased.MinValue.Day,
-						),
-					},
-				),
-				"duration": validation.ErrMinGreaterEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MinLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.EpisodeUpdateRequest{
-				Title: null.StringFrom(testDatas.title.length.longerThanMax),
-				Descriptions: null.StringFrom(
-					testDatas.descriptions.length.longerThanMax,
-				),
-				DateReleased: null.TimeFrom(
-					testDatas.dateReleased.greaterThanMaxValue,
-				),
-				Duration: null.IntFrom(
-					testDatas.duration.greaterThanMaxValue,
-				),
-			},
-			expErrors: validation.Errors{
-				"title": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Title.MinLength,
-						"max": config.Config.Validation.Film.Title.MaxLength,
-					},
-				),
-				"descriptions": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Film.Descriptions.MinLength,
-						"max": config.Config.Validation.Film.Descriptions.MaxLength,
-					},
-				),
-				"date_released": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": testutils.Date(
-							time.Now().Year(),
-							time.Now().Month(),
-							time.Now().Day(),
-						),
-					},
-				),
-				"duration": validation.ErrMaxLessEqualThanRequired.SetParams(
-					map[string]any{
-						"threshold": config.Config.Validation.Film.Duraion.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", defaults.series.id).
-				WithPath("se", seasonNumber).
-				WithPath("ep", episodeNumber).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleEpisodeInvalidate(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -1434,7 +1016,38 @@ func TestHandleEpisodeInvalidate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"episode_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithPath("ep", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.InvalidationRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"invalidation": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// episode not found
 	e.Request(method, path).
@@ -1506,87 +1119,6 @@ func TestHandleEpisodeInvalidate(t *testing.T) {
 	)
 }
 
-func TestHandleEpisodeInvalidate_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultSeries)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/{id}/season/{se}/episode/{ep}/"
-	method := http.MethodDelete
-
-	var (
-		seasonNumber  = 1
-		episodeNumber = 1
-	)
-
-	testCases := []struct {
-		name      string
-		req       dto.InvalidationRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.InvalidationRequest{},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.InvalidationRequest{
-				Invalidation: "i",
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.InvalidationRequest{
-				Invalidation: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Request.Invalidation.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", defaults.series.id).
-				WithPath("se", seasonNumber).
-				WithPath("ep", episodeNumber).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleEpisodesInvalidateAllBySeason(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -1614,7 +1146,34 @@ func TestHandleEpisodesInvalidateAllBySeason(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid request
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithJSON(dto.InvalidationRequest{}).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidRequest,
+			validation.Errors{
+				"invalidation": validation.ErrRequired,
+			}.Error(),
+		))
 
 	// not found
 	e.Request(method, path).
@@ -1679,8 +1238,11 @@ func TestHandleEpisodesInvalidateAllBySeason(t *testing.T) {
 		ctx,
 		defaults.series.id,
 		seasonNumber,
-		0,
-		math.MaxInt,
+		query.SortOrderOptions{
+			SortOrder: "asc",
+			Offset:    0,
+			Limit:     math.MaxInt,
+		},
 	)
 	require.NoError(err)
 	require.Equal(len(episodePutAllReq.Episodes), total)
@@ -1719,83 +1281,6 @@ func TestHandleEpisodesInvalidateAllBySeason(t *testing.T) {
 	}
 }
 
-func TestHandleEpisodesInvalidateAllBySeason_ValidateRequest(t *testing.T) {
-	server, _, defaults, teardown := setup(OptEnableDefaultSeries)
-	t.Cleanup(teardown)
-
-	path := "/v1/authorized/series/{id}/season/{se}/episode/"
-	method := http.MethodDelete
-
-	seasonNumber := 1
-
-	testCases := []struct {
-		name      string
-		req       dto.InvalidationRequest
-		expErrors validation.Errors
-	}{
-		{
-			name: "tc1",
-			req:  dto.InvalidationRequest{},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrRequired,
-			},
-		},
-
-		{
-			name: "tc2",
-			req: dto.InvalidationRequest{
-				Invalidation: "i",
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-
-		{
-			name: "tc3",
-			req: dto.InvalidationRequest{
-				Invalidation: testutils.GenerateStringLongerThanMaxLength(
-					config.Config.Validation.Request.Invalidation.MaxLength,
-				),
-			},
-			expErrors: validation.Errors{
-				"invalidation": validation.ErrLengthOutOfRange.SetParams(
-					map[string]any{
-						"min": config.Config.Validation.Request.Invalidation.MinLength,
-						"max": config.Config.Validation.Request.Invalidation.MaxLength,
-					},
-				),
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			e := httpexpect.New(t, server.URL)
-
-			e.Request(method, path).
-				WithPath("id", defaults.series.id).
-				WithPath("se", seasonNumber).
-				WithHeader(echo.HeaderAuthorization, defaults.user.auth).
-				WithJSON(tc.req).
-				Expect().
-				Status(http.StatusBadRequest).
-				JSON().
-				Object().
-				Equal(response.Error(
-					response.StatusInvalidRequest,
-					tc.expErrors.Error(),
-				))
-		})
-	}
-}
-
 func TestHandleEpisodeAuditsGetAll(t *testing.T) {
 	require := require.New(t)
 	ctx := context.Background()
@@ -1822,7 +1307,42 @@ func TestHandleEpisodeAuditsGetAll(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusInvalidURLParameter))
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"season_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+				"episode_number": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// invalid query
+	e.Request(method, path).
+		WithPath("id", 1).
+		WithPath("se", 1).
+		WithPath("ep", 1).
+		WithQueryObject(request.PaginationQuery{Page: -1}).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"page": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{
+						"threshold": config.Config.Pagination.Page.MinValue,
+					},
+				),
+			}.Error(),
+		))
 
 	// episode not found
 	e.Request(method, path).

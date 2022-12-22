@@ -51,14 +51,12 @@ type config struct {
 
 	Pagination struct {
 		Page struct {
-			VarName  string `yaml:"var_name" env-required:"true"`
-			MinValue int    `yaml:"min_value" env-required:"true"`
+			MinValue int `yaml:"min_value" env-required:"true"`
 		} `yaml:"page" env-required:"true"`
 		PageSize struct {
-			VarName      string `yaml:"var_name" env-required:"true"`
-			DefaultValue int    `yaml:"default_value" env-required:"true"`
-			MinValue     int    `yaml:"min_value" env-required:"true"`
-			MaxValue     int    `yaml:"max_value" env-required:"true"`
+			DefaultValue int `yaml:"default_value" env-required:"true"`
+			MinValue     int `yaml:"min_value" env-required:"true"`
+			MaxValue     int `yaml:"max_value" env-required:"true"`
 		} `yaml:"page_size" env-required:"true"`
 	} `yaml:"pagination" env-required:"true"`
 

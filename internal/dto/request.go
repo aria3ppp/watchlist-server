@@ -28,12 +28,11 @@ func passwordValidationRules() []validation.Rule {
 			config.Config.Validation.User.Password.MinLength,
 			config.Config.Validation.User.Password.MaxLength,
 		),
-		validator.Password(
-			config.Config.Validation.User.Password.RequiredNumbers,
-			config.Config.Validation.User.Password.RequiredLowerLetters,
-			config.Config.Validation.User.Password.RequiredUpperLetters,
-			config.Config.Validation.User.Password.RequiredSpecialChars,
-		),
+		validator.IsPassword().
+			Numbers(config.Config.Validation.User.Password.RequiredNumbers).
+			LowerLetters(config.Config.Validation.User.Password.RequiredLowerLetters).
+			UpperLetters(config.Config.Validation.User.Password.RequiredUpperLetters).
+			SpecialChars(config.Config.Validation.User.Password.RequiredSpecialChars),
 	}
 }
 
@@ -614,7 +613,7 @@ type MovieCreateRequest FilmCreateRequest
 
 var _ validation.Validatable = MovieCreateRequest{}
 
-func (r MovieCreateRequest) Validate() error { return (FilmCreateRequest(r)).Validate() }
+func (r MovieCreateRequest) Validate() error { return FilmCreateRequest(r).Validate() }
 
 // -----------------------------------------------------------------------------
 // MovieUpdateRequest
@@ -623,7 +622,7 @@ type MovieUpdateRequest FilmUpdateRequest
 
 var _ validation.Validatable = MovieUpdateRequest{}
 
-func (r MovieUpdateRequest) Validate() error { return (FilmUpdateRequest(r)).Validate() }
+func (r MovieUpdateRequest) Validate() error { return FilmUpdateRequest(r).Validate() }
 
 // -----------------------------------------------------------------------------
 // EpisodePutRequest
@@ -632,7 +631,7 @@ type EpisodePutRequest FilmCreateRequest
 
 var _ validation.Validatable = EpisodePutRequest{}
 
-func (r EpisodePutRequest) Validate() error { return (FilmCreateRequest(r)).Validate() }
+func (r EpisodePutRequest) Validate() error { return FilmCreateRequest(r).Validate() }
 
 // -----------------------------------------------------------------------------
 // EpisodeUpdateRequest
@@ -641,7 +640,7 @@ type EpisodeUpdateRequest FilmUpdateRequest
 
 var _ validation.Validatable = EpisodeUpdateRequest{}
 
-func (r EpisodeUpdateRequest) Validate() error { return (FilmUpdateRequest(r)).Validate() }
+func (r EpisodeUpdateRequest) Validate() error { return FilmUpdateRequest(r).Validate() }
 
 // -----------------------------------------------------------------------------
 // EpisodesPutAllBySeasonRequest

@@ -22,12 +22,21 @@ var (
 	)
 )
 
-func FetchUserPayload(c echo.Context) *token_service.Payload {
+func (s *Server) getUserPayload(
+	c echo.Context,
+) (*token_service.Payload, *echo.HTTPError) {
 	payload, ok := c.Get(PayloadKey).(*token_service.Payload)
-	if ok {
-		return payload
+	if !ok {
+		s.logger.Error(
+			"server.getUserPayload: payload key not set on context",
+			zap.String("payload key", PayloadKey),
+		)
+		return nil, echo.NewHTTPError(
+			http.StatusInternalServerError,
+			response.Error(response.StatusInternalServerError),
+		)
 	}
-	return nil
+	return payload, nil
 }
 
 func (s *Server) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {

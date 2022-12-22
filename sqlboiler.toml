@@ -1,5 +1,5 @@
 wipe = true
-tag-ignore = ["hashed_password"]
+tag-ignore = ["users.hashed_password", "watchfilms.user_id", "watchfilms.film_id"]
 
 [aliases.tables.serieses]
 up_plural     = "Serieses"
@@ -18,9 +18,9 @@ foreign = "ContributingUser"
 [psql]
 blacklist = ["schema_migrations"]
 
-dbname = "watchlist-db"
+dbname = "watchlist-server"
 host   = "localhost"
-port = 5432
-user = "watchlist-user"
-pass = "watchlist-password"
+port = 54321
+user = "watchlist-server"
+pass = "watchlist-server"
 sslmode = "disable"

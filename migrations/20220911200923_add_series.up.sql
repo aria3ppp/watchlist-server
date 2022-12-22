@@ -35,7 +35,11 @@ call add_contribution_and_invalidation_columns(
 call create_audit_table(
 	p_table => 'serieses',
 	p_audit_table_name => 'serieses_audit',
-	p_audit_table_pk_columns_order_sep_by_comma => 'id, contributed_by, contributed_at'
+
+	p_audit_table_index_name => 'serieses_audit_idx_contributed_at',
+	p_audit_table_index_column_name => 'contributed_at',
+
+	p_audit_table_pk_columns_list_sep_by_comma => 'id, contributed_by, contributed_at'
 );
 
 call build_trigger_audit_on_update(

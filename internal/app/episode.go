@@ -5,6 +5,7 @@ import (
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
+	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 )
 
@@ -30,17 +31,22 @@ func (a *Application) EpisodeGet(
 func (a *Application) EpisodesGetAllBySeries(
 	ctx context.Context,
 	seriesID int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) (episodes []*models.Film, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
 		func(ctx context.Context, tx repo.Service) error {
-			var err error
+			_, err := tx.SeriesGet(ctx, seriesID)
+			if err != nil {
+				if err == repo.ErrNoRecord {
+					return ErrNotFound
+				}
+				return err
+			}
 			episodes, err = tx.EpisodesGetAllBySeries(
 				ctx,
 				seriesID,
-				offset,
-				limit,
+				queryOptions,
 			)
 			if err != nil {
 				return err
@@ -59,18 +65,23 @@ func (a *Application) EpisodesGetAllBySeason(
 	ctx context.Context,
 	seriesID int,
 	seasonNumber int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) (episodes []*models.Film, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
 		func(ctx context.Context, tx repo.Service) error {
-			var err error
+			_, err := tx.SeriesGet(ctx, seriesID)
+			if err != nil {
+				if err == repo.ErrNoRecord {
+					return ErrNotFound
+				}
+				return err
+			}
 			episodes, err = tx.EpisodesGetAllBySeason(
 				ctx,
 				seriesID,
 				seasonNumber,
-				offset,
-				limit,
+				queryOptions,
 			)
 			if err != nil {
 				return err
@@ -265,7 +276,7 @@ func (a *Application) EpisodesInvalidateAllBySeason(
 func (a *Application) EpisodeAuditsGetAll(
 	ctx context.Context,
 	seriesID, seasonNumber, episodeNumber int,
-	offset, limit int,
+	queryOptions query.SortOrderOptions,
 ) (audits []*models.FilmsAudit, total int, err error) {
 	err = a.repository.Transaction(
 		ctx,
@@ -284,8 +295,7 @@ func (a *Application) EpisodeAuditsGetAll(
 				seriesID,
 				seasonNumber,
 				episodeNumber,
-				offset,
-				limit,
+				queryOptions,
 			)
 			if err != nil {
 				return err
