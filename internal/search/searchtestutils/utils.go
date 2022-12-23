@@ -71,7 +71,7 @@ func DeleteIndexWait(
 	}
 	err := WaitUntil(
 		func() (done bool, err error) {
-			if notExist, err := IndexNotExists(client, index...); err != nil {
+			if notExist, err := indexNotExists(client, index...); err != nil {
 				return false, err
 			} else if notExist {
 				return true, nil
@@ -84,7 +84,7 @@ func DeleteIndexWait(
 	return err
 }
 
-func IndexNotExists(
+func indexNotExists(
 	client *elasticsearch.Client,
 	index ...string,
 ) (bool, error) {
