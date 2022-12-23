@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/search/searchtestutils"
@@ -20,8 +21,10 @@ var esClient *elasticsearch.Client
 // run teardown on test's cleanup
 func teardown() {
 	// delete indices
-	if err := searchtestutils.DeleteIndex(
+	if err := searchtestutils.DeleteIndexWait(
 		esClient,
+		10*time.Second,
+		time.Second,
 		config.Config.Elasticsearch.Index.Serieses,
 		config.Config.Elasticsearch.Index.Movies,
 	); err != nil {

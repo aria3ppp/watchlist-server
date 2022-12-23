@@ -927,19 +927,21 @@ func TestHandleMoviesSearch(t *testing.T) {
 	}
 
 	// wait until movie got index
-	timeoutExceed := searchtestutils.WaitUntil(
-		func() bool {
+	err := searchtestutils.WaitUntil(
+		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,
 				config.Config.Elasticsearch.Index.Movies,
 			)
-			require.NoError(err)
-			return c == len(movieCreateReqs)
+			if err != nil {
+				return false, err
+			}
+			return c == len(movieCreateReqs), nil
 		},
 		10*time.Second,
 		time.Second,
 	)
-	require.False(timeoutExceed, "timeout exceed")
+	require.NoError(err)
 
 	gotMovies, _, err := appInstance.MoviesGetAll(ctx, query.Options{
 		Offset:    0,

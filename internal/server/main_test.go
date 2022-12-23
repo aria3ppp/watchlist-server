@@ -189,8 +189,10 @@ func setup(
 	// prepare teardown
 	teardown = func() {
 		// delete elasticsearch indices
-		err = searchtestutils.DeleteIndex(
+		err = searchtestutils.DeleteIndexWait(
 			esClient,
+			10*time.Second,
+			time.Second,
 			config.Config.Elasticsearch.Index.Serieses,
 			config.Config.Elasticsearch.Index.Movies,
 		)

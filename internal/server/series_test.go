@@ -923,19 +923,21 @@ func TestHandleSeriesesSearch(t *testing.T) {
 	}
 
 	// wait until series got index
-	timeoutExceed := searchtestutils.WaitUntil(
-		func() bool {
+	err := searchtestutils.WaitUntil(
+		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,
 				config.Config.Elasticsearch.Index.Serieses,
 			)
-			require.NoError(err)
-			return c == len(seriesCreateReqs)
+			if err != nil {
+				return false, err
+			}
+			return c == len(seriesCreateReqs), nil
 		},
 		10*time.Second,
 		time.Second,
 	)
-	require.False(timeoutExceed, "timeout exceed")
+	require.NoError(err)
 
 	gotSerieses, _, err := appInstance.SeriesesGetAll(
 		ctx, query.Options{

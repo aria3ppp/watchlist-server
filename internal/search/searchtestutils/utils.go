@@ -3,6 +3,8 @@ package searchtestutils
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"strings"
 	"time"
 	_ "unsafe"
@@ -52,7 +54,11 @@ func CountIndex(client *elasticsearch.Client, index string) (int, error) {
 	return r.Count, err
 }
 
-func DeleteIndex(client *elasticsearch.Client, index ...string) error {
+func DeleteIndexWait(
+	client *elasticsearch.Client,
+	timeout, cooldown time.Duration,
+	index ...string,
+) error {
 	for _, idx := range index {
 		resp, err := client.Indices.Delete([]string{idx})
 		if err != nil {
@@ -63,21 +69,55 @@ func DeleteIndex(client *elasticsearch.Client, index ...string) error {
 			return responseError(resp)
 		}
 	}
-	return nil
+	err := WaitUntil(
+		func() (done bool, err error) {
+			if exist, err := IndexExists(client, index...); err != nil {
+				return false, err
+			} else if exist {
+				return false, nil
+			}
+			return true, nil
+		},
+		timeout,
+		cooldown,
+	)
+	return err
+}
+
+func IndexExists(client *elasticsearch.Client, index ...string) (bool, error) {
+	for _, idx := range index {
+		resp, err := client.Indices.Exists([]string{idx})
+		if err != nil {
+			return false, err
+		}
+		defer resp.Body.Close()
+		if resp.IsError() {
+			if resp.StatusCode == http.StatusNotFound {
+				return false, nil
+			}
+			return false, responseError(resp)
+		}
+	}
+	return true, nil
 }
 
 func WaitUntil(
-	until func() bool,
+	f func() (done bool, err error),
 	timeout, cooldown time.Duration,
-) (timeoutExceed bool) {
+) error {
 	t := time.After(timeout)
 	for {
 		select {
 		case <-t:
-			return true
+			return fmt.Errorf(
+				"searchtestutils.WaitUntil: %s timeout exceeded",
+				timeout,
+			)
 		default:
-			if until() {
-				return false
+			if ok, err := f(); err != nil {
+				return err
+			} else if ok {
+				return nil
 			}
 		}
 		time.Sleep(cooldown)

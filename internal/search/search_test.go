@@ -177,19 +177,21 @@ func TestSearchSerieses(t *testing.T) {
 	}
 
 	// wait until all documents are indexed
-	timeoutExceed := searchtestutils.WaitUntil(
-		func() bool {
+	err = searchtestutils.WaitUntil(
+		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,
 				config.Config.Elasticsearch.Index.Serieses,
 			)
-			require.NoError(err)
-			return c == len(serieses)
+			if err != nil {
+				return false, err
+			}
+			return c == len(serieses), nil
 		},
 		10*time.Second,
 		200*time.Millisecond,
 	)
-	require.False(timeoutExceed, "timeout exceeded")
+	require.NoError(err)
 
 	// search query
 	gotSerieses, total, err = s.SearchSerieses(
@@ -376,19 +378,21 @@ func TestSearchMovies(t *testing.T) {
 	}
 
 	// wait until all documents are indexed
-	timeoutExceed := searchtestutils.WaitUntil(
-		func() bool {
+	err = searchtestutils.WaitUntil(
+		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,
 				config.Config.Elasticsearch.Index.Movies,
 			)
-			require.NoError(err)
-			return c == len(movies)
+			if err != nil {
+				return false, err
+			}
+			return c == len(movies), nil
 		},
 		10*time.Second,
 		200*time.Millisecond,
 	)
-	require.False(timeoutExceed, "timeout exceed")
+	require.NoError(err)
 
 	// search query
 	gotMovies, total, err = s.SearchMovies(
