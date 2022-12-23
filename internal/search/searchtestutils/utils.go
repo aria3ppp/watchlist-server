@@ -71,12 +71,12 @@ func DeleteIndexWait(
 	}
 	err := WaitUntil(
 		func() (done bool, err error) {
-			if exist, err := IndexExists(client, index...); err != nil {
+			if notExist, err := IndexNotExists(client, index...); err != nil {
 				return false, err
-			} else if exist {
-				return false, nil
+			} else if notExist {
+				return true, nil
 			}
-			return true, nil
+			return false, nil
 		},
 		timeout,
 		cooldown,
@@ -84,7 +84,11 @@ func DeleteIndexWait(
 	return err
 }
 
-func IndexExists(client *elasticsearch.Client, index ...string) (bool, error) {
+func IndexNotExists(
+	client *elasticsearch.Client,
+	index ...string,
+) (bool, error) {
+	notExists := true
 	for _, idx := range index {
 		resp, err := client.Indices.Exists([]string{idx})
 		if err != nil {
@@ -93,12 +97,15 @@ func IndexExists(client *elasticsearch.Client, index ...string) (bool, error) {
 		defer resp.Body.Close()
 		if resp.IsError() {
 			if resp.StatusCode == http.StatusNotFound {
-				return false, nil
+				notExists = notExists && true
+			} else {
+				return false, responseError(resp)
 			}
-			return false, responseError(resp)
+		} else {
+			notExists = false
 		}
 	}
-	return true, nil
+	return notExists, nil
 }
 
 func WaitUntil(
