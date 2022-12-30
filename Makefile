@@ -37,6 +37,10 @@ services-postgres-up: ## create and start postgres service
 services-elasticsearch-up: ## create and start elasticsearch service
 	$(DOCKER_COMPOSE_SERVICES) up --wait elasticsearch
 
+.PHONY: services-minio-up
+services-minio-up: ## create and start minio service
+	$(DOCKER_COMPOSE_SERVICES) up --wait minio
+
 .PHONY: server-ps
 server-ps: ## list server containers
 	$(DOCKER_COMPOSE_SERVER) ps
@@ -60,6 +64,8 @@ test-all: ## run all tests
 	@make test-repo-integration
 	@tail -n +2 coverage.out >> coverage-all.out
 	@make test-search-integration
+	@tail -n +2 coverage.out >> coverage-all.out
+	@make test-storage-integration
 	@tail -n +2 coverage.out >> coverage-all.out
 	@make test-e2e
 	@tail -n +2 coverage.out >> coverage-all.out
@@ -91,6 +97,10 @@ test-repo-integration: ## run repository integration tests
 test-search-integration: ## run search integration tests
 	env TEST_ES_INTEGRATION=V go test -covermode=count -coverprofile=coverage.out ./internal/search/
 
+.PHONY: test-storage-integration
+test-storage-integration: ## run storage integration tests
+	env TEST_MINIO_INTEGRATION=V go test -covermode=count -coverprofile=coverage.out ./internal/storage/
+
 .PHONY: test-e2e
 test-e2e: ## run end-to-end tests
 	env TEST_E2E=V go test -covermode=count -coverprofile=coverage.out ./internal/server/
@@ -117,6 +127,10 @@ test-repo-integration-cover: test-repo-integration ## run repository integration
 
 .PHONY: test-search-integration-cover
 test-search-integration-cover: test-search-integration ## run search integration tests and show test coverage information
+	go tool cover -html=coverage.out
+
+.PHONY: test-storage-integration-cover
+test-storage-integration-cover: test-storage-integration ## run storage integration tests and show test coverage information
 	go tool cover -html=coverage.out
 
 .PHONY: test-e2e-cover

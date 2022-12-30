@@ -13,20 +13,19 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/search"
 	"github.com/aria3ppp/watchlist-server/internal/server"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 	"github.com/aria3ppp/watchlist-server/internal/token"
 	"github.com/elastic/elastic-transport-go/v8/elastictransport"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
 	_ "github.com/lib/pq"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"go.uber.org/zap"
 )
 
 func main() {
-	if err := config.Load("config.yml"); err != nil {
-		log.Fatalf("failed loading configs: %s", err)
-	}
-
 	var logFile *os.File
 	if config.Config.Server.Production {
 		var err error
@@ -41,6 +40,7 @@ func main() {
 	}
 
 	logger := newLogger(logFile)
+	defer logger.Sync()
 
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=disable",
@@ -94,7 +94,22 @@ func main() {
 	}
 	searchService, err := search.NewElasticSearch(esClient)
 	if err != nil {
-		log.Fatalf("search.NewElasticSearch error: %s", err)
+		logger.Fatal("failed initializing search service", zap.Error(err))
+	}
+
+	minioClient, err := minio.New(config.Config.MinIO.Url, &minio.Options{
+		Creds: credentials.NewStaticV4(
+			config.Config.MinIO.RootUser,
+			config.Config.MinIO.RootPassword,
+			"",
+		),
+	})
+	if err != nil {
+		logger.Fatal("failed creating minio client", zap.Error(err))
+	}
+	storageService, err := storage.NewMinIO(minioClient)
+	if err != nil {
+		logger.Fatal("failed initializing storage service", zap.Error(err))
 	}
 
 	application := app.NewApplication(
@@ -102,6 +117,7 @@ func main() {
 		tokenService,
 		searchService,
 		hasher,
+		storageService,
 	)
 
 	server := server.NewServer(application, echo.New(), tokenService, logger)

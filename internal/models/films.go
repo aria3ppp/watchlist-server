@@ -32,6 +32,7 @@ type Film struct {
 	SeriesID      null.Int    `boil:"series_id" json:"series_id,omitempty" toml:"series_id" yaml:"series_id,omitempty"`
 	SeasonNumber  null.Int    `boil:"season_number" json:"season_number,omitempty" toml:"season_number" yaml:"season_number,omitempty"`
 	EpisodeNumber null.Int    `boil:"episode_number" json:"episode_number,omitempty" toml:"episode_number" yaml:"episode_number,omitempty"`
+	Poster        null.String `boil:"poster" json:"poster,omitempty" toml:"poster" yaml:"poster,omitempty"`
 	ContributedBy int         `boil:"contributed_by" json:"contributed_by" toml:"contributed_by" yaml:"contributed_by"`
 	ContributedAt time.Time   `boil:"contributed_at" json:"contributed_at" toml:"contributed_at" yaml:"contributed_at"`
 	Invalidation  null.String `boil:"invalidation" json:"invalidation,omitempty" toml:"invalidation" yaml:"invalidation,omitempty"`
@@ -49,6 +50,7 @@ var FilmColumns = struct {
 	SeriesID      string
 	SeasonNumber  string
 	EpisodeNumber string
+	Poster        string
 	ContributedBy string
 	ContributedAt string
 	Invalidation  string
@@ -61,6 +63,7 @@ var FilmColumns = struct {
 	SeriesID:      "series_id",
 	SeasonNumber:  "season_number",
 	EpisodeNumber: "episode_number",
+	Poster:        "poster",
 	ContributedBy: "contributed_by",
 	ContributedAt: "contributed_at",
 	Invalidation:  "invalidation",
@@ -75,6 +78,7 @@ var FilmTableColumns = struct {
 	SeriesID      string
 	SeasonNumber  string
 	EpisodeNumber string
+	Poster        string
 	ContributedBy string
 	ContributedAt string
 	Invalidation  string
@@ -87,6 +91,7 @@ var FilmTableColumns = struct {
 	SeriesID:      "films.series_id",
 	SeasonNumber:  "films.season_number",
 	EpisodeNumber: "films.episode_number",
+	Poster:        "films.poster",
 	ContributedBy: "films.contributed_by",
 	ContributedAt: "films.contributed_at",
 	Invalidation:  "films.invalidation",
@@ -246,6 +251,7 @@ var FilmWhere = struct {
 	SeriesID      whereHelpernull_Int
 	SeasonNumber  whereHelpernull_Int
 	EpisodeNumber whereHelpernull_Int
+	Poster        whereHelpernull_String
 	ContributedBy whereHelperint
 	ContributedAt whereHelpertime_Time
 	Invalidation  whereHelpernull_String
@@ -258,6 +264,7 @@ var FilmWhere = struct {
 	SeriesID:      whereHelpernull_Int{field: "\"films\".\"series_id\""},
 	SeasonNumber:  whereHelpernull_Int{field: "\"films\".\"season_number\""},
 	EpisodeNumber: whereHelpernull_Int{field: "\"films\".\"episode_number\""},
+	Poster:        whereHelpernull_String{field: "\"films\".\"poster\""},
 	ContributedBy: whereHelperint{field: "\"films\".\"contributed_by\""},
 	ContributedAt: whereHelpertime_Time{field: "\"films\".\"contributed_at\""},
 	Invalidation:  whereHelpernull_String{field: "\"films\".\"invalidation\""},
@@ -311,9 +318,9 @@ func (r *filmR) GetWatchfilms() WatchfilmSlice {
 type filmL struct{}
 
 var (
-	filmAllColumns            = []string{"id", "title", "descriptions", "date_released", "duration", "series_id", "season_number", "episode_number", "contributed_by", "contributed_at", "invalidation"}
+	filmAllColumns            = []string{"id", "title", "descriptions", "date_released", "duration", "series_id", "season_number", "episode_number", "poster", "contributed_by", "contributed_at", "invalidation"}
 	filmColumnsWithoutDefault = []string{"title", "date_released", "contributed_by"}
-	filmColumnsWithDefault    = []string{"id", "descriptions", "duration", "series_id", "season_number", "episode_number", "contributed_at", "invalidation"}
+	filmColumnsWithDefault    = []string{"id", "descriptions", "duration", "series_id", "season_number", "episode_number", "poster", "contributed_at", "invalidation"}
 	filmPrimaryKeyColumns     = []string{"id"}
 	filmGeneratedColumns      = []string{}
 )

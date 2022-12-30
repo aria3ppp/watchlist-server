@@ -69,45 +69,44 @@ func DeleteIndexWait(
 			return responseError(resp)
 		}
 	}
+
 	err := WaitUntil(
 		func() (done bool, err error) {
-			if notExist, err := indexNotExists(client, index...); err != nil {
-				return false, err
-			} else if notExist {
-				return true, nil
+			for _, idx := range index {
+				if exists, err := IndexExists(client, idx); err != nil {
+					return false, err
+				} else if exists {
+					return false, nil
+				}
 			}
-			return false, nil
+			return true, nil
 		},
 		timeout,
 		cooldown,
 	)
+
 	return err
 }
 
-func indexNotExists(
+func IndexExists(
 	client *elasticsearch.Client,
-	index ...string,
+	index string,
 ) (bool, error) {
-	notExists := true
-	for _, idx := range index {
-		resp, err := client.Indices.Exists([]string{idx})
-		if err != nil {
-			return false, err
-		}
-		defer resp.Body.Close()
-		if resp.IsError() {
-			if resp.StatusCode == http.StatusNotFound {
-				notExists = notExists && true
-			} else {
-				return false, responseError(resp)
-			}
-		} else {
-			notExists = false
-		}
+	resp, err := client.Indices.Exists([]string{index})
+	if err != nil {
+		return false, err
 	}
-	return notExists, nil
+	defer resp.Body.Close()
+	if resp.IsError() {
+		if resp.StatusCode == http.StatusNotFound {
+			return false, nil
+		}
+		return false, responseError(resp)
+	}
+	return true, nil
 }
 
+// TODO: Delete this function and use testutils.WaitUntil instead
 func WaitUntil(
 	f func() (done bool, err error),
 	timeout, cooldown time.Duration,

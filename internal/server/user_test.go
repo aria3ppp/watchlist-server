@@ -3,6 +3,10 @@ package server_test
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -161,7 +165,7 @@ func TestHandleUserCreate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusEmailAlreadyUsed))
+		Equal(response.Error(response.StatusUsedEmail))
 }
 
 func TestHandleUserLogin(t *testing.T) {
@@ -194,10 +198,10 @@ func TestHandleUserLogin(t *testing.T) {
 			Password: defaults.user.password,
 		}).
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusNotFound).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusEmailNotFound))
+		Equal(response.Error(response.StatusNotFound))
 
 	// incorrect password
 	e.Request(method, path).
@@ -206,7 +210,7 @@ func TestHandleUserLogin(t *testing.T) {
 			Password: "1nc0RR3ct_pa$$",
 		}).
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
 		Equal(response.Error(response.StatusIncorrectPassword))
@@ -240,19 +244,19 @@ func TestHandleUserRefreshToken(t *testing.T) {
 	// missing token
 	e.Request(method, path).
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusTokenMissingOrMalformed))
+		Equal(response.Error(response.StatusMissingToken))
 
 	// invalid token
 	e.Request(method, path).
 		WithHeader(echo.HeaderAuthorization, "Bearer invalid_token").
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusTokenInvalid))
+		Equal(response.Error(response.StatusInvalidToken))
 
 	// refresh token
 	e.Request(method, path).
@@ -475,7 +479,7 @@ func TestHandleUserPasswordUpdate(t *testing.T) {
 		Status(http.StatusBadRequest).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusSameNewPassword))
+		Equal(response.Error(response.StatusSamePassword))
 
 	newPassword := "new_pa$$W0RD1"
 
@@ -487,7 +491,7 @@ func TestHandleUserPasswordUpdate(t *testing.T) {
 			NewPassword:     newPassword,
 		}).
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
 		Equal(response.Error(response.StatusIncorrectPassword))
@@ -573,7 +577,7 @@ func TestHandleUserDelete(t *testing.T) {
 		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
 		WithJSON(&dto.UserDeleteRequest{Password: "1nc0RR3ct_pa$$"}).
 		Expect().
-		Status(http.StatusBadRequest).
+		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
 		Equal(response.Error(response.StatusIncorrectPassword))
@@ -600,6 +604,192 @@ func TestHandleUserDelete(t *testing.T) {
 	e.Request(method, path).
 		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
 		WithJSON(&dto.UserDeleteRequest{Password: defaults.user.password}).
+		Expect().
+		Status(http.StatusNotFound).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusNotFound))
+}
+
+func TestHandleUserPutAvatar(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	server, appInstance, defaults, teardown := setup(OptEnableDefaultUser)
+	t.Cleanup(teardown)
+
+	e := httpexpect.New(t, server.URL)
+	path := "/v1/authorized/user/avatar"
+	method := http.MethodPut
+
+	filename := config.Config.MinIO.Filename.User
+
+	type FileInfo struct {
+		path        string
+		file        *os.File
+		size        int64
+		contentType string
+	}
+	openFile := func(path string) FileInfo {
+		file, err := os.Open(path)
+		require.NoError(err)
+		t.Cleanup(func() { file.Close() })
+
+		stat, err := file.Stat()
+		require.NoError(err)
+
+		buf := make([]byte, 512)
+		_, err = file.Read(buf)
+		require.NoError(err)
+		_, err = file.Seek(0, 0)
+		require.NoError(err)
+
+		return FileInfo{
+			path:        path,
+			file:        file,
+			size:        stat.Size(),
+			contentType: http.DetectContentType(buf),
+		}
+	}
+
+	file := openFile(filepath.Join("testdata", "gopher-1.webp"))
+	overwrittenFile := openFile(filepath.Join("testdata", "gopher-2.png"))
+	unsupportedFile := openFile(filepath.Join("testdata", "gopher-3.ico"))
+
+	// user have no avatar
+
+	userGetReq := struct {
+		method string
+		path   string
+	}{
+		method: http.MethodGet,
+		path:   "/v1/authorized/user/{id}",
+	}
+
+	e.Request(userGetReq.method, userGetReq.path).
+		WithPath("id", defaults.user.id).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object().
+		Value("avatar").Null()
+
+	// missing file
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusMissingFile))
+
+	// unsupported file
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, unsupportedFile.path).
+		Expect().
+		Status(http.StatusUnsupportedMediaType).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusUnsupportedMediaType))
+
+	// put avatar
+	uri := e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, file.path).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").String().NotEmpty().Raw()
+
+	// now user have avatar
+	e.Request(userGetReq.method, userGetReq.path).
+		WithPath("id", defaults.user.id).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object().
+		ValueEqual("avatar", uri)
+
+	// check file on storage
+
+	storageExpect := httpexpect.New(t, "http://127.0.0.1:9000")
+
+	uriSplit := strings.Split(uri, "?")
+	require.Equal(2, len(uriSplit))
+	versionIdQuery := strings.Split(uriSplit[1], "=")
+	require.Equal(2, len(versionIdQuery))
+
+	resp := storageExpect.Request(http.MethodGet, uriSplit[0]).
+		WithQuery(versionIdQuery[0], versionIdQuery[1]).
+		Expect().
+		Status(http.StatusOK)
+
+	resp.Header("Content-Length").Equal(strconv.FormatInt(file.size, 10))
+	resp.Header("Content-Type").Equal(file.contentType)
+
+	// overwrite avatar
+	uri = e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, overwrittenFile.path).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").String().NotEmpty().Raw()
+
+	// check overwritten user avatar
+	e.Request(userGetReq.method, userGetReq.path).
+		WithPath("id", defaults.user.id).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object().
+		ValueEqual("avatar", uri)
+
+	// check overwritten file on storage
+	uriSplit = strings.Split(uri, "?")
+	require.Equal(2, len(uriSplit))
+	versionIdQuery = strings.Split(uriSplit[1], "=")
+	require.Equal(2, len(versionIdQuery))
+
+	resp = storageExpect.Request(http.MethodGet, uriSplit[0]).
+		WithQuery(versionIdQuery[0], versionIdQuery[1]).
+		Expect().
+		Status(http.StatusOK)
+
+	resp.Header("Content-Length").
+		Equal(strconv.FormatInt(overwrittenFile.size, 10))
+	resp.Header("Content-Type").Equal(overwrittenFile.contentType)
+
+	// user not found
+
+	err := appInstance.UserDelete(
+		ctx,
+		defaults.user.id,
+		&dto.UserDeleteRequest{Password: defaults.user.password},
+	)
+	require.NoError(err)
+
+	e.Request(method, path).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, file.path).
 		Expect().
 		Status(http.StatusNotFound).
 		JSON().

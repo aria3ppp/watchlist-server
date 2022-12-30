@@ -12,13 +12,13 @@ import (
 const PayloadKey = "user_payload"
 
 var (
-	ErrTokenMissingOrMalformed error = echo.NewHTTPError(
+	ErrMissingToken error = echo.NewHTTPError(
 		http.StatusUnauthorized,
-		response.Error(response.StatusTokenMissingOrMalformed),
+		response.Error(response.StatusMissingToken),
 	)
-	ErrTokenInvalid error = echo.NewHTTPError(
+	ErrInvalidToken error = echo.NewHTTPError(
 		http.StatusUnauthorized,
-		response.Error(response.StatusTokenInvalid),
+		response.Error(response.StatusInvalidToken),
 	)
 )
 
@@ -46,10 +46,10 @@ func (s *Server) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 		token := token_service.ExtractTokenFromAuth(auth)
 		if token == "" {
 			s.logger.Info(
-				"server.AuthMiddleware: token missing/malformed",
+				"server.AuthMiddleware: token missing",
 				zap.String(echo.HeaderAuthorization, auth),
 			)
-			return ErrTokenMissingOrMalformed
+			return ErrMissingToken
 		}
 
 		// validate token
@@ -60,7 +60,7 @@ func (s *Server) AuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 					"server.AuthMiddleware: invalid token",
 					zap.String("token", token),
 				)
-				return ErrTokenInvalid
+				return ErrInvalidToken
 			}
 
 			s.logger.Error(

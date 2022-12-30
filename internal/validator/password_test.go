@@ -15,16 +15,17 @@ func TestIsPassword(t *testing.T) {
 		err                            bool
 	}{
 		{"tc1", 2, 2, 2, 2, "54abcdEF&$", false},
-		{"tc2", 2, 2, 2, 2, "", false},
-		{"tc8", 0, 0, 0, 0, "fjdslj", false},
-		{"tc3", 2, 2, 2, 2, "4abcdEF&$", true},
-		{"tc4", 2, 2, 2, 2, "54aEF&$", true},
-		{"tc5", 2, 2, 2, 2, "54abcdE&$", true},
-		{"tc6", 2, 2, 2, 2, "54abcdEF&", true},
-		{"tc7", 2, 0, 0, 0, "54abcdef", false},
-		{"tc7", 0, 2, 0, 0, "54abcdef", false},
-		{"tc7", 0, 0, 2, 0, "54abcdEF", false},
-		{"tc7", 0, 0, 0, 2, "54abcdef&$", false},
+		{"tc2", 2, 2, 2, 2, "", true},
+		{"tc3", 0, 0, 0, 0, "fjdslj", false},
+		{"tc4", 2, 2, 2, 2, "4abcdEF&$", true},
+		{"tc5", 2, 2, 2, 2, "54aEF&$", true},
+		{"tc6", 2, 2, 2, 2, "54abcdE&$", true},
+		{"tc7", 2, 2, 2, 2, "54abcdEF&", true},
+		{"tc8", 2, 0, 0, 0, "54aB$", false},
+		{"tc9", 0, 2, 0, 0, "5abcdef", false},
+		{"tc10", 0, 0, 2, 0, "5abcdEF", false},
+		{"tc11", 0, 0, 0, 2, "5abcdef&$", false},
+		{"tc12", 0, 0, 0, 0, "", false},
 	}
 
 	for _, tc := range testCases {

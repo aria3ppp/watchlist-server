@@ -1,8 +1,6 @@
 package validator
 
 import (
-	"fmt"
-	"reflect"
 	"strings"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -64,16 +62,13 @@ func (r IsPasswordRule) ErrorObject(err validation.Error) IsPasswordRule {
 
 func (r IsPasswordRule) Validate(value any) error {
 	value, isNil := validation.Indirect(value)
-	if isNil || validation.IsEmpty(value) {
+	if isNil /*|| validation.IsEmpty(value)*/ {
 		return nil
 	}
 
-	password, isString := value.(string)
-	if !isString {
-		return fmt.Errorf(
-			"password must be string but it's not: %v",
-			reflect.ValueOf(value).Kind(),
-		)
+	password, err := validation.EnsureString(value)
+	if err != nil {
+		return err
 	}
 
 	var nums, lowers, uppers, specials int
@@ -98,10 +93,10 @@ func (r IsPasswordRule) Validate(value any) error {
 		}
 	}
 
-	if r.numbers != 0 && nums < r.numbers ||
-		r.lowerLetters != 0 && lowers < r.lowerLetters ||
-		r.upperLetters != 0 && uppers < r.upperLetters ||
-		r.specialChars != 0 && specials < r.specialChars {
+	if r.numbers > 0 && nums < r.numbers ||
+		r.lowerLetters > 0 && lowers < r.lowerLetters ||
+		r.upperLetters > 0 && uppers < r.upperLetters ||
+		r.specialChars > 0 && specials < r.specialChars {
 		return r.err.SetParams(map[string]any{
 			"num":     r.numbers,
 			"lower":   r.lowerLetters,

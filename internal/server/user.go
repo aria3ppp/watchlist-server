@@ -4,9 +4,11 @@ import (
 	"net/http"
 
 	"github.com/aria3ppp/watchlist-server/internal/app"
+	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/server/request"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 	"github.com/aria3ppp/watchlist-server/internal/token"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -65,7 +67,7 @@ func (s *Server) HandleUserCreate(c echo.Context) error {
 			)
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
-				response.Error(response.StatusEmailAlreadyUsed),
+				response.Error(response.StatusUsedEmail),
 			)
 		}
 
@@ -104,8 +106,8 @@ func (s *Server) HandleUserLogin(c echo.Context) error {
 				zap.String("email", req.Email),
 			)
 			return echo.NewHTTPError(
-				http.StatusBadRequest,
-				response.Error(response.StatusEmailNotFound),
+				http.StatusNotFound,
+				response.Error(response.StatusNotFound),
 			)
 		}
 
@@ -114,7 +116,7 @@ func (s *Server) HandleUserLogin(c echo.Context) error {
 				"server.HandleLoginUser: request password not matched",
 			)
 			return echo.NewHTTPError(
-				http.StatusBadRequest,
+				http.StatusUnauthorized,
 				response.Error(response.StatusIncorrectPassword),
 			)
 		}
@@ -148,10 +150,10 @@ func (s *Server) HandleUserRefreshToken(c echo.Context) error {
 	auth := c.Request().Header.Get(echo.HeaderAuthorization)
 	refreshToken := token.ExtractTokenFromAuth(auth)
 	if refreshToken == "" {
-		s.logger.Info("server.HandleRefreshToken: token malformed or missing")
+		s.logger.Info("server.HandleRefreshToken: token missing")
 		return echo.NewHTTPError(
-			http.StatusBadRequest,
-			response.Error(response.StatusTokenMissingOrMalformed),
+			http.StatusUnauthorized,
+			response.Error(response.StatusMissingToken),
 		)
 	}
 
@@ -167,8 +169,8 @@ func (s *Server) HandleUserRefreshToken(c echo.Context) error {
 				zap.String("token", refreshToken),
 			)
 			return echo.NewHTTPError(
-				http.StatusBadRequest,
-				response.Error(response.StatusTokenInvalid),
+				http.StatusUnauthorized,
+				response.Error(response.StatusInvalidToken),
 			)
 		}
 
@@ -299,7 +301,7 @@ func (s *Server) HandleUserPasswordUpdate(c echo.Context) error {
 			)
 			return echo.NewHTTPError(
 				http.StatusBadRequest,
-				response.Error(response.StatusSameNewPassword),
+				response.Error(response.StatusSamePassword),
 			)
 		}
 
@@ -319,7 +321,7 @@ func (s *Server) HandleUserPasswordUpdate(c echo.Context) error {
 				"server.HandleUserPasswordUpdate: request password not matched",
 			)
 			return echo.NewHTTPError(
-				http.StatusBadRequest,
+				http.StatusUnauthorized,
 				response.Error(response.StatusIncorrectPassword),
 			)
 		}
@@ -372,7 +374,7 @@ func (s *Server) HandleUserDelete(c echo.Context) error {
 				"server.HandleUserDelete: request password not matched",
 			)
 			return echo.NewHTTPError(
-				http.StatusBadRequest,
+				http.StatusUnauthorized,
 				response.Error(response.StatusIncorrectPassword),
 			)
 		}
@@ -388,4 +390,75 @@ func (s *Server) HandleUserDelete(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, response.OK(nil))
+}
+
+//------------------------------------------------------------------------------
+
+// PUT /v1/authorized/user/avatar/
+func (s *Server) HandleUserPutAvatar(c echo.Context) error {
+	var (
+		filename = config.Config.MinIO.Filename.User
+		bucket   = config.Config.MinIO.Bucket.Image.Name
+		category = config.Config.MinIO.Category.User
+	)
+
+	// get form file
+	file, fileHeader, httpError := s.getFormFile(c, filename)
+	if httpError != nil {
+		return httpError
+	}
+	defer file.Close()
+
+	// detect content type
+	contentType, httpError := s.ensureSupportedFileType(
+		file,
+		config.Config.MinIO.Bucket.Image.SupportedTypes,
+	)
+	if httpError != nil {
+		return httpError
+	}
+
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
+	}
+
+	// put avatar
+	uri, err := s.app.UserPutAvatar(
+		c.Request().Context(),
+		payload.UserID,
+		file,
+		&storage.PutOptions{
+			Bucket:      bucket,
+			Category:    category,
+			CategoryID:  payload.UserID,
+			Filename:    filename,
+			ContentType: contentType,
+			Size:        fileHeader.Size,
+		},
+	)
+	if err != nil {
+		if err == app.ErrNotFound {
+			s.logger.Error(
+				"server.HandleUserPutAvatar: user not found",
+				zap.Int("id", payload.UserID),
+			)
+			return echo.NewHTTPError(
+				http.StatusNotFound,
+				response.Error(response.StatusNotFound),
+			)
+		}
+
+		s.logger.Error(
+			"server.HandleUserPutAvatar: failed putting avatar",
+			zap.String("bucket", bucket),
+			zap.Error(err),
+		)
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			response.Error(response.StatusInternalServerError),
+		)
+	}
+
+	return c.JSON(http.StatusOK, response.OK(uri))
 }

@@ -46,12 +46,6 @@ type Service interface {
 		contributorID int,
 		cols map[string]any,
 	) error
-	SeriesInvalidate(
-		ctx context.Context,
-		seriesID int,
-		contributorID int,
-		invalidation string,
-	) error
 	SeriesAuditsGetAll(
 		ctx context.Context,
 		id int,
@@ -103,22 +97,10 @@ type Service interface {
 		contributorID int,
 		cols map[string]any,
 	) error
-	EpisodeInvalidate(
-		ctx context.Context,
-		seriesID, seasonNumber, episodeNumber int,
-		contributorID int,
-		invalidation string,
-	) error
 	EpisodesInvalidateAllBySeason(
 		ctx context.Context,
 		seriesID int,
 		seasonNumber int,
-		contributorID int,
-		invalidation string,
-	) error
-	EpisodesInvalidateAllBySeries(
-		ctx context.Context,
-		seriesID int,
 		contributorID int,
 		invalidation string,
 	) error
@@ -157,12 +139,6 @@ type Service interface {
 		movieID int,
 		contributorID int,
 		cols map[string]any,
-	) error
-	MovieInvalidate(
-		ctx context.Context,
-		movieID int,
-		contributorID int,
-		invalidation string,
 	) error
 	MovieAuditsGetAll(
 		ctx context.Context,

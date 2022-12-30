@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"io"
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 )
 
 func (a *Application) SeriesGet(
@@ -109,36 +111,21 @@ func (a *Application) SeriesInvalidate(
 	contributorID int,
 	req *dto.InvalidationRequest,
 ) error {
-	err := a.repository.Transaction(
+	err := a.repository.SeriesUpdate(
 		ctx,
-		func(ctx context.Context, tx repo.Service) error {
-			// first invalidate series itself
-			err := tx.SeriesInvalidate(
-				ctx,
-				seriesID,
-				contributorID,
-				req.Invalidation,
-			)
-			if err != nil {
-				if err == repo.ErrNoRecord {
-					return ErrNotFound
-				}
-				return err
-			}
-			// then invalidate all the related episodes if any
-			err = tx.EpisodesInvalidateAllBySeries(
-				ctx,
-				seriesID,
-				contributorID,
-				req.Invalidation,
-			)
-			if err != nil && err != repo.ErrNoRecord {
-				return err
-			}
-			return nil
+		seriesID,
+		contributorID,
+		map[string]any{
+			models.SeriesColumns.Invalidation: req.Invalidation,
 		},
 	)
-	return err
+	if err != nil {
+		if err == repo.ErrNoRecord {
+			return ErrNotFound
+		}
+		return err
+	}
+	return nil
 }
 
 func (a *Application) SeriesAuditsGetAll(
@@ -178,4 +165,30 @@ func (a *Application) SeriesesSearch(
 	queryOptions query.SearchOptions,
 ) (results []*models.Series, total int, err error) {
 	return a.search.SearchSerieses(ctx, queryOptions)
+}
+
+func (a *Application) SeriesPutPoster(
+	ctx context.Context,
+	id int,
+	contributorID int,
+	poster io.Reader,
+	options *storage.PutOptions,
+) (uri string, err error) {
+	// put file
+	uri, err = a.storage.PutFile(ctx, poster, options)
+	if err != nil {
+		return "", err
+	}
+	// update series poster
+	err = a.repository.SeriesUpdate(ctx, id, contributorID, map[string]any{
+		models.SeriesColumns.Poster: uri,
+	})
+	if err != nil {
+		// TODO: transactional approach is to delete file in storage service on failure
+		if err == repo.ErrNoRecord {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return uri, nil
 }

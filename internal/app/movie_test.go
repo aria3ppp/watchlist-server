@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	_ "unsafe"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/repo/mock_repo"
 	"github.com/aria3ppp/watchlist-server/internal/search/mock_search"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
+	"github.com/aria3ppp/watchlist-server/internal/storage/mock_storage"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -103,7 +106,7 @@ func TestMovieGet(t *testing.T) {
 				MovieGet(ctx, id).
 				Return(tc.get.exp.movie, tc.get.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			movie, err := app.MovieGet(ctx, id)
 			require.Equal(tc.exp.err, err)
@@ -266,7 +269,7 @@ func TestMoviesGetAll(t *testing.T) {
 					After(getAllCall)
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			movies, total, err := app.MoviesGetAll(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
@@ -355,7 +358,7 @@ func TestMovieCreate(t *testing.T) {
 				}).
 				Return(tc.create.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			id, err := app.MovieCreate(ctx, contributorID, req)
 			require.Equal(tc.exp.err, err)
@@ -454,7 +457,7 @@ func TestMovieUpdate(t *testing.T) {
 				MovieUpdate(ctx, id, contributorID, movieUpdateRequestToValidMap(req)).
 				Return(tc.update.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.MovieUpdate(ctx, id, contributorID, req)
 			require.Equal(tc.exp.err, err)
@@ -540,10 +543,12 @@ func TestMovieInvalidate(t *testing.T) {
 			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
-				MovieInvalidate(ctx, id, contributorID, req.Invalidation).
+				MovieUpdate(ctx, id, contributorID, map[string]any{
+					models.FilmColumns.Invalidation: req.Invalidation,
+				}).
 				Return(tc.movieInvalidate.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.MovieInvalidate(ctx, id, contributorID, req)
 			require.Equal(tc.exp.err, err)
@@ -782,7 +787,7 @@ func TestMovieAuditsGetAll(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			audits, total, err := app.MovieAuditsGetAll(ctx, id, queryOptions)
 			require.Equal(tc.exp.err, err)
@@ -873,12 +878,158 @@ func TestMoviesSearch(t *testing.T) {
 				SearchMovies(ctx, queryOptions).
 				Return(tc.search.exp.movies, tc.exp.total, tc.search.exp.err)
 
-			app := app.NewApplication(nil, nil, mockSearch, nil)
+			app := app.NewApplication(nil, nil, mockSearch, nil, nil)
 
 			movies, total, err := app.MoviesSearch(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.movies, movies)
 			require.Equal(tc.exp.total, total)
+		})
+	}
+}
+
+func TestMoviePutPoster(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	var (
+		movieID       = 1
+		contributorID = 11
+		poster        = strings.NewReader("poster")
+		options       = &storage.PutOptions{}
+
+		expUri              = "expected uri :/"
+		expPutFileError     = errors.New("PutFile error")
+		expMovieUpdateError = errors.New("MovieUpdate error")
+	)
+
+	type PutFileExp struct {
+		uri string
+		err error
+	}
+	type PutFile struct {
+		exp PutFileExp
+	}
+	type UpdateMovieExp struct {
+		err error
+	}
+	type UpdateMovie struct {
+		exp UpdateMovieExp
+	}
+	type Exp struct {
+		uri string
+		err error
+	}
+	testCases := []struct {
+		name        string
+		putFile     PutFile
+		updateMovie UpdateMovie
+		exp         Exp
+	}{
+		{
+			name: "PutFile error",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: "",
+					err: expPutFileError,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: expPutFileError,
+			},
+		},
+		{
+			name: "not found",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateMovie: UpdateMovie{
+				exp: UpdateMovieExp{
+					err: repo.ErrNoRecord,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: app.ErrNotFound,
+			},
+		},
+		{
+			name: "MovieUpdate error",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateMovie: UpdateMovie{
+				exp: UpdateMovieExp{
+					err: expMovieUpdateError,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: expMovieUpdateError,
+			},
+		},
+		{
+			name: "ok",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateMovie: UpdateMovie{
+				exp: UpdateMovieExp{
+					err: nil,
+				},
+			},
+			exp: Exp{
+				uri: expUri,
+				err: nil,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require := require.New(t)
+
+			controller := gomock.NewController(t)
+			mockStorage := mock_storage.NewMockService(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
+
+			putFileCall := mockStorage.EXPECT().
+				PutFile(ctx, poster, options).
+				Return(tc.putFile.exp.uri, tc.putFile.exp.err)
+
+			if tc.putFile.exp.err == nil {
+				mockRepo.EXPECT().
+					MovieUpdate(ctx, movieID, contributorID, map[string]any{
+						models.FilmColumns.Poster: tc.putFile.exp.uri,
+					}).
+					Return(tc.updateMovie.exp.err).
+					After(putFileCall)
+			}
+
+			app := app.NewApplication(mockRepo, nil, nil, nil, mockStorage)
+
+			uri, err := app.MoviePutPoster(
+				ctx,
+				movieID,
+				contributorID,
+				poster,
+				options,
+			)
+			require.Equal(tc.exp.err, err)
+			require.Equal(tc.exp.uri, uri)
 		})
 	}
 }

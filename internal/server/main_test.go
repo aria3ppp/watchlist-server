@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -19,10 +18,13 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/search"
 	"github.com/aria3ppp/watchlist-server/internal/search/searchtestutils"
 	appServer "github.com/aria3ppp/watchlist-server/internal/server"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 	"github.com/aria3ppp/watchlist-server/internal/token"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"go.uber.org/zap"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -109,7 +111,17 @@ func setup(
 	if err != nil {
 		log.Fatalf("server_test.setup: search.NewElasticSearch error: %s", err)
 	}
-	appInstance = app.NewApplication(repo, tokenService, searchService, hasher)
+	storageService, err := storage.NewMinIO(minioClient)
+	if err != nil {
+		log.Fatalf("server_test.setup: storage.NewMinIO error: %s", err)
+	}
+	appInstance = app.NewApplication(
+		repo,
+		tokenService,
+		searchService,
+		hasher,
+		storageService,
+	)
 	echo := echo.New()
 	logger := zap.NewNop()
 	if OptEnableLogger&opts != 0 {
@@ -215,8 +227,9 @@ func setup(
 }
 
 var (
-	db       *sql.DB
-	esClient *elasticsearch.Client
+	db          *sql.DB
+	esClient    *elasticsearch.Client
+	minioClient *minio.Client
 )
 
 func TestMain(m *testing.M) {
@@ -229,11 +242,6 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	err := config.Load(filepath.Join("..", "..", "config.yml"))
-	if err != nil {
-		log.Fatalf("server_test.TestMain: failed loading configs: %s", err)
-	}
-
 	// setup db
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@localhost:%s/%s?sslmode=disable",
@@ -242,6 +250,7 @@ func TestMain(m *testing.M) {
 		os.Getenv("POSTGRES_PORT"),
 		os.Getenv("POSTGRES_DB"),
 	)
+	var err error
 	db, err = sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf(
@@ -268,6 +277,18 @@ func TestMain(m *testing.M) {
 			"server_test.TestMain: elasticsearcch.NewClient error: %s",
 			err,
 		)
+	}
+
+	// setup minio
+	minioClient, err = minio.New("localhost:9000", &minio.Options{
+		Creds: credentials.NewStaticV4(
+			os.Getenv("MINIO_ROOT_USER"),
+			os.Getenv("MINIO_ROOT_PASSWORD"),
+			"",
+		),
+	})
+	if err != nil {
+		log.Fatalf("server_test.TestMain: minio.New error: %s", err)
 	}
 
 	// Run tests

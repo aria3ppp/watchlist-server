@@ -232,13 +232,15 @@ func (a *Application) EpisodeInvalidate(
 	contributorID int,
 	req *dto.InvalidationRequest,
 ) error {
-	err := a.repository.EpisodeInvalidate(
+	err := a.repository.EpisodeUpdate(
 		ctx,
 		seriesID,
 		seasonNumber,
 		episodeNumber,
 		contributorID,
-		req.Invalidation,
+		map[string]any{
+			models.FilmColumns.Invalidation: req.Invalidation,
+		},
 	)
 	if err != nil {
 		if err == repo.ErrNoRecord {

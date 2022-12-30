@@ -5,6 +5,39 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "test storage",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/storage",
+            "args": ["-test.run", "TestPutFile", "-test.v"],
+            "env": {
+                "TEST_MINIO_INTEGRATION": "non-empty"
+            },
+            "envFile": "${workspaceRoot}/.env"
+        }, 
+        {
+            "name": "test search series",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/search",
+            "args": ["-test.run", "TestSearchSeries", "-test.v"],
+            "env": {
+                "TEST_ES_INTEGRATION": "non-empty"
+            },
+            "envFile": "${workspaceRoot}/.env"
+        }, 
+        {
+            "name": "test password validator",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/validator",
+            "args": ["-test.run", "TestIsPassword", "-test.v"],
+            "envFile": "${workspaceRoot}/.env"
+        }, 
+        {
             "name": "test dto validation",
             "type": "go",
             "request": "launch",

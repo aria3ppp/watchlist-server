@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/aria3ppp/watchlist-server/internal/config"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -60,11 +58,6 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	err := config.Load(filepath.Join("..", "..", "config.yml"))
-	if err != nil {
-		log.Fatalf("repo_test.TestMain: failed loading configs: %s", err)
-	}
-
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@localhost:%s/%s?sslmode=disable",
 		os.Getenv("POSTGRES_USER"),
@@ -72,6 +65,7 @@ func TestMain(m *testing.M) {
 		os.Getenv("POSTGRES_PORT"),
 		os.Getenv("POSTGRES_DB"),
 	)
+	var err error
 	db, err = sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatalf(

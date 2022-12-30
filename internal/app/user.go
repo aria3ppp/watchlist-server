@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"io"
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/hasher"
 	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 	"github.com/aria3ppp/watchlist-server/internal/token"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -315,4 +317,31 @@ func (a *Application) UserDelete(
 	)
 
 	return err
+}
+
+//------------------------------------------------------------------------------
+
+func (a *Application) UserPutAvatar(
+	ctx context.Context,
+	userID int,
+	avatar io.Reader,
+	options *storage.PutOptions,
+) (uri string, err error) {
+	// put file
+	uri, err = a.storage.PutFile(ctx, avatar, options)
+	if err != nil {
+		return "", err
+	}
+	// update user avatar
+	err = a.repository.UserUpdate(ctx, userID, map[string]any{
+		models.UserColumns.Avatar: uri,
+	})
+	if err != nil {
+		// TODO: transactional approach is to delete file in storage service on failure
+		if err == repo.ErrNoRecord {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return uri, nil
 }

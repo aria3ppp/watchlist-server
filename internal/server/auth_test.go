@@ -23,7 +23,7 @@ func TestE2EAuthorization(t *testing.T) {
 		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusTokenMissingOrMalformed))
+		Equal(response.Error(response.StatusMissingToken))
 
 	// invalid token
 	e.Request(method, path).
@@ -32,7 +32,7 @@ func TestE2EAuthorization(t *testing.T) {
 		Status(http.StatusUnauthorized).
 		JSON().
 		Object().
-		Equal(response.Error(response.StatusTokenInvalid))
+		Equal(response.Error(response.StatusInvalidToken))
 
 	// successful authorization
 	e.Request(method, path+"{id}").

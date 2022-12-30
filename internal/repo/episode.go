@@ -163,33 +163,6 @@ func (repo *Repository) EpisodeUpdate(
 	return nil
 }
 
-func (repo *Repository) EpisodeInvalidate(
-	ctx context.Context,
-	seriesID, seasonNumber, episodeNumber int,
-	contributorID int,
-	invalidation string,
-) error {
-	rowsAff, err := models.Films(
-		models.FilmWhere.SeriesID.EQ(null.IntFrom(seriesID)),
-		models.FilmWhere.SeasonNumber.EQ(null.IntFrom(seasonNumber)),
-		models.FilmWhere.EpisodeNumber.EQ(null.IntFrom(episodeNumber)),
-	).UpdateAll(
-		ctx,
-		repo.exec,
-		map[string]any{
-			models.FilmColumns.Invalidation:  invalidation,
-			models.FilmColumns.ContributedBy: contributorID,
-		},
-	)
-	if err != nil {
-		return err
-	}
-	if rowsAff == 0 {
-		return ErrNoRecord
-	}
-	return nil
-}
-
 func (repo *Repository) EpisodesInvalidateAllBySeason(
 	ctx context.Context,
 	seriesID int,
@@ -200,33 +173,6 @@ func (repo *Repository) EpisodesInvalidateAllBySeason(
 	rowsAff, err := models.Films(
 		models.FilmWhere.SeriesID.EQ(null.IntFrom(seriesID)),
 		models.FilmWhere.SeasonNumber.EQ(null.IntFrom(seasonNumber)),
-		models.FilmWhere.EpisodeNumber.IsNotNull(),
-	).UpdateAll(
-		ctx,
-		repo.exec,
-		map[string]any{
-			models.FilmColumns.Invalidation:  invalidation,
-			models.FilmColumns.ContributedBy: contributorID,
-		},
-	)
-	if err != nil {
-		return err
-	}
-	if rowsAff == 0 {
-		return ErrNoRecord
-	}
-	return nil
-}
-
-func (repo *Repository) EpisodesInvalidateAllBySeries(
-	ctx context.Context,
-	seriesID int,
-	contributorID int,
-	invalidation string,
-) error {
-	rowsAff, err := models.Films(
-		models.FilmWhere.SeriesID.EQ(null.IntFrom(seriesID)),
-		models.FilmWhere.SeasonNumber.IsNotNull(),
 		models.FilmWhere.EpisodeNumber.IsNotNull(),
 	).UpdateAll(
 		ctx,

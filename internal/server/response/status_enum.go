@@ -20,38 +20,41 @@ const (
 	StatusInvalidURLParameter
 	// StatusInvalidRequest is a Status of type InvalidRequest.
 	StatusInvalidRequest
-	// StatusEmailAlreadyUsed is a Status of type EmailAlreadyUsed.
-	StatusEmailAlreadyUsed
-	// StatusEmailNotFound is a Status of type EmailNotFound.
-	StatusEmailNotFound
+	// StatusUsedEmail is a Status of type UsedEmail.
+	StatusUsedEmail
 	// StatusIncorrectPassword is a Status of type IncorrectPassword.
 	StatusIncorrectPassword
-	// StatusSameNewPassword is a Status of type SameNewPassword.
-	StatusSameNewPassword
-	// StatusTokenInvalid is a Status of type TokenInvalid.
-	StatusTokenInvalid
-	// StatusTokenMissingOrMalformed is a Status of type TokenMissingOrMalformed.
-	StatusTokenMissingOrMalformed
+	// StatusSamePassword is a Status of type SamePassword.
+	StatusSamePassword
+	// StatusInvalidToken is a Status of type InvalidToken.
+	StatusInvalidToken
+	// StatusMissingToken is a Status of type MissingToken.
+	StatusMissingToken
+	// StatusMissingFile is a Status of type MissingFile.
+	StatusMissingFile
+	// StatusUnsupportedMediaType is a Status of type UnsupportedMediaType.
+	StatusUnsupportedMediaType
 	// StatusInternalServerError is a Status of type InternalServerError.
 	StatusInternalServerError
 )
 
 var ErrInvalidStatus = errors.New("not a valid Status")
 
-const _StatusName = "OKNotFoundInvalidURLParameterInvalidRequestEmailAlreadyUsedEmailNotFoundIncorrectPasswordSameNewPasswordTokenInvalidTokenMissingOrMalformedInternalServerError"
+const _StatusName = "OKNotFoundInvalidURLParameterInvalidRequestUsedEmailIncorrectPasswordSamePasswordInvalidTokenMissingTokenMissingFileUnsupportedMediaTypeInternalServerError"
 
 var _StatusMap = map[Status]string{
-	StatusOK:                      _StatusName[0:2],
-	StatusNotFound:                _StatusName[2:10],
-	StatusInvalidURLParameter:     _StatusName[10:29],
-	StatusInvalidRequest:          _StatusName[29:43],
-	StatusEmailAlreadyUsed:        _StatusName[43:59],
-	StatusEmailNotFound:           _StatusName[59:72],
-	StatusIncorrectPassword:       _StatusName[72:89],
-	StatusSameNewPassword:         _StatusName[89:104],
-	StatusTokenInvalid:            _StatusName[104:116],
-	StatusTokenMissingOrMalformed: _StatusName[116:139],
-	StatusInternalServerError:     _StatusName[139:158],
+	StatusOK:                   _StatusName[0:2],
+	StatusNotFound:             _StatusName[2:10],
+	StatusInvalidURLParameter:  _StatusName[10:29],
+	StatusInvalidRequest:       _StatusName[29:43],
+	StatusUsedEmail:            _StatusName[43:52],
+	StatusIncorrectPassword:    _StatusName[52:69],
+	StatusSamePassword:         _StatusName[69:81],
+	StatusInvalidToken:         _StatusName[81:93],
+	StatusMissingToken:         _StatusName[93:105],
+	StatusMissingFile:          _StatusName[105:116],
+	StatusUnsupportedMediaType: _StatusName[116:136],
+	StatusInternalServerError:  _StatusName[136:155],
 }
 
 // String implements the Stringer interface.
@@ -67,13 +70,14 @@ var _StatusValue = map[string]Status{
 	_StatusName[2:10]:    StatusNotFound,
 	_StatusName[10:29]:   StatusInvalidURLParameter,
 	_StatusName[29:43]:   StatusInvalidRequest,
-	_StatusName[43:59]:   StatusEmailAlreadyUsed,
-	_StatusName[59:72]:   StatusEmailNotFound,
-	_StatusName[72:89]:   StatusIncorrectPassword,
-	_StatusName[89:104]:  StatusSameNewPassword,
-	_StatusName[104:116]: StatusTokenInvalid,
-	_StatusName[116:139]: StatusTokenMissingOrMalformed,
-	_StatusName[139:158]: StatusInternalServerError,
+	_StatusName[43:52]:   StatusUsedEmail,
+	_StatusName[52:69]:   StatusIncorrectPassword,
+	_StatusName[69:81]:   StatusSamePassword,
+	_StatusName[81:93]:   StatusInvalidToken,
+	_StatusName[93:105]:  StatusMissingToken,
+	_StatusName[105:116]: StatusMissingFile,
+	_StatusName[116:136]: StatusUnsupportedMediaType,
+	_StatusName[136:155]: StatusInternalServerError,
 }
 
 // ParseStatus attempts to convert a string to a Status.

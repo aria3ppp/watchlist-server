@@ -87,34 +87,6 @@ func (repo *Repository) MovieUpdate(
 	return nil
 }
 
-func (repo *Repository) MovieInvalidate(
-	ctx context.Context,
-	movieID int,
-	contributorID int,
-	invalidation string,
-) error {
-	rowsAff, err := models.Films(
-		models.FilmWhere.ID.EQ(movieID),
-		models.FilmWhere.SeriesID.IsNull(),
-		models.FilmWhere.SeasonNumber.IsNull(),
-		models.FilmWhere.EpisodeNumber.IsNull(),
-	).UpdateAll(
-		ctx,
-		repo.exec,
-		map[string]any{
-			models.FilmColumns.Invalidation:  invalidation,
-			models.FilmColumns.ContributedBy: contributorID,
-		},
-	)
-	if err != nil {
-		return err
-	}
-	if rowsAff == 0 {
-		return ErrNoRecord
-	}
-	return nil
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 func (repo *Repository) MovieAuditsGetAll(

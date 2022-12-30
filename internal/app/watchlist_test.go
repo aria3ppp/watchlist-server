@@ -176,7 +176,7 @@ func TestWatchlistGet(t *testing.T) {
 					After(getAllCall)
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			watchlist, total, err := app.WatchlistGet(
 				ctx,
@@ -349,7 +349,7 @@ func TestWatchlistAdd(t *testing.T) {
 					After(filmExistsCall)
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			watchID, err := app.WatchlistAdd(ctx, userID, filmID)
 			require.Equal(tc.exp.err, err)
@@ -436,7 +436,7 @@ func TestWatchlistDelete(t *testing.T) {
 				WatchlistDelete(ctx, userID, watchID).
 				Return(tc.delete.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.WatchlistDelete(ctx, userID, watchID)
 			require.Equal(tc.exp.err, err)
@@ -522,7 +522,7 @@ func TestWatchlistSetWatched(t *testing.T) {
 				WatchlistSetWatched(ctx, userID, watchID).
 				Return(tc.setWatched.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.WatchlistSetWatched(ctx, userID, watchID)
 			require.Equal(tc.exp.err, err)

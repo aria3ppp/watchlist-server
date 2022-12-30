@@ -12,17 +12,19 @@ services:
         - MIGRATE_VERSION=4.15.2
     env_file: .env
     ports:
-      - 8080:8080
+      - ${SERVER_PORT}:${SERVER_PORT}
     depends_on:
       postgres:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "curl -s -I http://localhost:8080 | grep -q 'HTTP/1.1 404 Not Found'",
+          "curl -s -I http://localhost:${SERVER_PORT} | grep -q 'HTTP/1.1 404 Not Found'",
         ]
       interval: 10s
       timeout: 10s
@@ -43,10 +45,16 @@ services:
       server:
         condition: service_healthy
 
+  minio:
+    volumes:
+      - miniodata:/data
+
 volumes:
   pgdata:
     driver: local
   esdata:
     driver: local
   logstashdata:
+    driver: local
+  miniodata:
     driver: local

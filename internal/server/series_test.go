@@ -3,7 +3,10 @@ package server_test
 import (
 	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1000,4 +1003,216 @@ func TestHandleSeriesesSearch(t *testing.T) {
 
 	payloadItems.Length().Equal(len(items))
 	payloadItems.Contains(toAnySlice(items)...)
+}
+
+func TestHandleSeriesPutPoster(t *testing.T) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	server, appInstance, defaults, teardown := setup(OptEnableDefaultUser)
+	t.Cleanup(teardown)
+
+	e := httpexpect.New(t, server.URL)
+	path := "/v1/authorized/series/{id}/poster"
+	method := http.MethodPut
+
+	filename := config.Config.MinIO.Filename.Series
+
+	type FileInfo struct {
+		path        string
+		file        *os.File
+		size        int64
+		contentType string
+	}
+	openFile := func(path string) FileInfo {
+		file, err := os.Open(path)
+		require.NoError(err)
+		t.Cleanup(func() { file.Close() })
+
+		stat, err := file.Stat()
+		require.NoError(err)
+
+		buf := make([]byte, 512)
+		_, err = file.Read(buf)
+		require.NoError(err)
+		_, err = file.Seek(0, 0)
+		require.NoError(err)
+
+		return FileInfo{
+			path:        path,
+			file:        file,
+			size:        stat.Size(),
+			contentType: http.DetectContentType(buf),
+		}
+	}
+
+	file := openFile(filepath.Join("testdata", "gopher-1.webp"))
+	overwrittenFile := openFile(filepath.Join("testdata", "gopher-2.png"))
+	unsupportedFile := openFile(filepath.Join("testdata", "gopher-3.ico"))
+
+	// invalid id
+	e.Request(method, path).
+		WithPath("id", -1).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, file.path).
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(
+			response.StatusInvalidURLParameter,
+			validation.Errors{
+				"id": validation.ErrMinGreaterEqualThanRequired.SetParams(
+					map[string]any{"threshold": 1},
+				),
+			}.Error(),
+		))
+
+	// series not found
+	e.Request(method, path).
+		WithPath("id", 999).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, file.path).
+		Expect().
+		Status(http.StatusNotFound).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusNotFound))
+
+	seriesCreateReq := &dto.SeriesCreateRequest{
+		Title:       "series",
+		DateStarted: testutils.Date(1900, 3, 14),
+	}
+	seriesID, err := appInstance.SeriesCreate(
+		ctx,
+		defaults.user.id,
+		seriesCreateReq,
+	)
+	require.NoError(err)
+
+	// series have no poster
+
+	seriesGetReq := struct {
+		method string
+		path   string
+	}{
+		method: http.MethodGet,
+		path:   "/v1/authorized/series/{id}",
+	}
+
+	e.Request(seriesGetReq.method, seriesGetReq.path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object().
+		Value("poster").Null()
+
+	// missing file
+	e.Request(method, path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().
+		Expect().
+		Status(http.StatusBadRequest).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusMissingFile))
+
+	// unsupported file
+	e.Request(method, path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, unsupportedFile.path).
+		Expect().
+		Status(http.StatusUnsupportedMediaType).
+		JSON().
+		Object().
+		Equal(response.Error(response.StatusUnsupportedMediaType))
+
+	// put poster
+	uri := e.Request(method, path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, file.path).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").String().NotEmpty().Raw()
+
+	// now series have poster
+	e.Request(seriesGetReq.method, seriesGetReq.path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object().
+		ValueEqual("poster", uri)
+
+	// check file on storage
+
+	storageExpect := httpexpect.New(t, "http://127.0.0.1:9000")
+
+	uriSplit := strings.Split(uri, "?")
+	require.Equal(2, len(uriSplit))
+	versionIdQuery := strings.Split(uriSplit[1], "=")
+	require.Equal(2, len(versionIdQuery))
+
+	resp := storageExpect.Request(http.MethodGet, uriSplit[0]).
+		WithQuery(versionIdQuery[0], versionIdQuery[1]).
+		Expect().
+		Status(http.StatusOK)
+
+	resp.Header("Content-Length").Equal(strconv.FormatInt(file.size, 10))
+	resp.Header("Content-Type").Equal(file.contentType)
+
+	// overwrite poster
+	uri = e.Request(method, path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		WithMultipart().WithFile(filename, overwrittenFile.path).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").String().NotEmpty().Raw()
+
+	// check overwritten series poster
+	e.Request(seriesGetReq.method, seriesGetReq.path).
+		WithPath("id", seriesID).
+		WithHeader(echo.HeaderAuthorization, defaults.user.auth).
+		Expect().
+		Status(http.StatusOK).
+		JSON().
+		Object().
+		ValueEqual("status", response.StatusOK.String()).
+		Value("payload").
+		Object().
+		ValueEqual("poster", uri)
+
+	// check overwritten file on storage
+	uriSplit = strings.Split(uri, "?")
+	require.Equal(2, len(uriSplit))
+	versionIdQuery = strings.Split(uriSplit[1], "=")
+	require.Equal(2, len(versionIdQuery))
+
+	resp = storageExpect.Request(http.MethodGet, uriSplit[0]).
+		WithQuery(versionIdQuery[0], versionIdQuery[1]).
+		Expect().
+		Status(http.StatusOK)
+
+	resp.Header("Content-Length").
+		Equal(strconv.FormatInt(overwrittenFile.size, 10))
+	resp.Header("Content-Type").Equal(overwrittenFile.contentType)
 }

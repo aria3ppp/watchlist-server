@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -42,12 +41,8 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	err := config.Load(filepath.Join("..", "..", "config.yml"))
-	if err != nil {
-		log.Fatalf("search_test.TestMain: failed loading configs: %s", err)
-	}
-
 	// setup client
+	var err error
 	esClient, err = elasticsearch.NewClient(
 		elasticsearch.Config{Addresses: []string{"http://localhost:9200"}},
 	)

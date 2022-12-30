@@ -75,6 +75,7 @@ func (s *Server) setHandlers() {
 	authorizedUser.PUT("/email/", s.HandleUserEmailUpdate)
 	authorizedUser.PUT("/password/", s.HandleUserPasswordUpdate)
 	authorizedUser.DELETE("/", s.HandleUserDelete)
+	authorizedUser.PUT("/avatar/", s.HandleUserPutAvatar)
 
 	// TODO: Implement access-based modifications:
 	// Only allowed users could change or delete a specific resource ==> admin? list of permited users per resource?
@@ -103,6 +104,7 @@ func (s *Server) setHandlers() {
 	movie.PATCH("/", s.HandleMovieUpdate)
 	movie.DELETE("/", s.HandleMovieInvalidate)
 	movie.GET("/audits/", s.HandleMovieAuditsGetAll)
+	movie.PUT("/poster/", s.HandleMoviePutPoster)
 
 	serieses := authorized.Group("/series")
 	serieses.GET("/", s.HandleSeriesesGetAll)
@@ -114,6 +116,7 @@ func (s *Server) setHandlers() {
 	series.PATCH("/", s.HandleSeriesUpdate)
 	series.DELETE("/", s.HandleSeriesInvalidate)
 	series.GET("/audits/", s.HandleSeriesAuditsGetAll)
+	series.PUT("/poster/", s.HandleSeriesPutPoster)
 
 	series.GET("/episode/", s.HandleEpisodesGetAllBySeries)
 

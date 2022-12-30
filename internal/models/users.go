@@ -32,6 +32,7 @@ type User struct {
 	Bio            null.String `boil:"bio" json:"bio,omitempty" toml:"bio" yaml:"bio,omitempty"`
 	Birthdate      null.Time   `boil:"birthdate" json:"birthdate,omitempty" toml:"birthdate" yaml:"birthdate,omitempty"`
 	Jointime       time.Time   `boil:"jointime" json:"jointime" toml:"jointime" yaml:"jointime"`
+	Avatar         null.String `boil:"avatar" json:"avatar,omitempty" toml:"avatar" yaml:"avatar,omitempty"`
 
 	R *userR `boil:"-" json:"-" toml:"-" yaml:"-"`
 	L userL  `boil:"-" json:"-" toml:"-" yaml:"-"`
@@ -46,6 +47,7 @@ var UserColumns = struct {
 	Bio            string
 	Birthdate      string
 	Jointime       string
+	Avatar         string
 }{
 	ID:             "id",
 	Email:          "email",
@@ -55,6 +57,7 @@ var UserColumns = struct {
 	Bio:            "bio",
 	Birthdate:      "birthdate",
 	Jointime:       "jointime",
+	Avatar:         "avatar",
 }
 
 var UserTableColumns = struct {
@@ -66,6 +69,7 @@ var UserTableColumns = struct {
 	Bio            string
 	Birthdate      string
 	Jointime       string
+	Avatar         string
 }{
 	ID:             "users.id",
 	Email:          "users.email",
@@ -75,6 +79,7 @@ var UserTableColumns = struct {
 	Bio:            "users.bio",
 	Birthdate:      "users.birthdate",
 	Jointime:       "users.jointime",
+	Avatar:         "users.avatar",
 }
 
 // Generated where
@@ -88,6 +93,7 @@ var UserWhere = struct {
 	Bio            whereHelpernull_String
 	Birthdate      whereHelpernull_Time
 	Jointime       whereHelpertime_Time
+	Avatar         whereHelpernull_String
 }{
 	ID:             whereHelperint{field: "\"users\".\"id\""},
 	Email:          whereHelperstring{field: "\"users\".\"email\""},
@@ -97,6 +103,7 @@ var UserWhere = struct {
 	Bio:            whereHelpernull_String{field: "\"users\".\"bio\""},
 	Birthdate:      whereHelpernull_Time{field: "\"users\".\"birthdate\""},
 	Jointime:       whereHelpertime_Time{field: "\"users\".\"jointime\""},
+	Avatar:         whereHelpernull_String{field: "\"users\".\"avatar\""},
 }
 
 // UserRels is where relationship names are stored.
@@ -147,9 +154,9 @@ func (r *userR) GetWatchfilms() WatchfilmSlice {
 type userL struct{}
 
 var (
-	userAllColumns            = []string{"id", "email", "hashed_password", "first_name", "last_name", "bio", "birthdate", "jointime"}
+	userAllColumns            = []string{"id", "email", "hashed_password", "first_name", "last_name", "bio", "birthdate", "jointime", "avatar"}
 	userColumnsWithoutDefault = []string{"email", "hashed_password"}
-	userColumnsWithDefault    = []string{"id", "first_name", "last_name", "bio", "birthdate", "jointime"}
+	userColumnsWithDefault    = []string{"id", "first_name", "last_name", "bio", "birthdate", "jointime", "avatar"}
 	userPrimaryKeyColumns     = []string{"id"}
 	userGeneratedColumns      = []string{}
 )

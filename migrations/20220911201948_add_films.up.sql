@@ -12,7 +12,9 @@ CREATE TABLE IF NOT EXISTS films (
 
     series_id INT,
     season_number INT,
-    episode_number INT
+    episode_number INT,
+
+	poster varchar
 
     -- contributed_by INT NOT NULL,
     -- contributed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

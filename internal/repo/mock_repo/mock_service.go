@@ -83,20 +83,6 @@ func (mr *MockServiceTxMockRecorder) EpisodeGet(arg0, arg1, arg2, arg3 interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodeGet", reflect.TypeOf((*MockServiceTx)(nil).EpisodeGet), arg0, arg1, arg2, arg3)
 }
 
-// EpisodeInvalidate mocks base method.
-func (m *MockServiceTx) EpisodeInvalidate(arg0 context.Context, arg1, arg2, arg3, arg4 int, arg5 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodeInvalidate", arg0, arg1, arg2, arg3, arg4, arg5)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// EpisodeInvalidate indicates an expected call of EpisodeInvalidate.
-func (mr *MockServiceTxMockRecorder) EpisodeInvalidate(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodeInvalidate", reflect.TypeOf((*MockServiceTx)(nil).EpisodeInvalidate), arg0, arg1, arg2, arg3, arg4, arg5)
-}
-
 // EpisodePut mocks base method.
 func (m *MockServiceTx) EpisodePut(arg0 context.Context, arg1, arg2, arg3, arg4 int, arg5 *models.Film) error {
 	m.ctrl.T.Helper()
@@ -199,20 +185,6 @@ func (mr *MockServiceTxMockRecorder) EpisodesInvalidateAllBySeason(arg0, arg1, a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesInvalidateAllBySeason", reflect.TypeOf((*MockServiceTx)(nil).EpisodesInvalidateAllBySeason), arg0, arg1, arg2, arg3, arg4)
 }
 
-// EpisodesInvalidateAllBySeries mocks base method.
-func (m *MockServiceTx) EpisodesInvalidateAllBySeries(arg0 context.Context, arg1, arg2 int, arg3 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EpisodesInvalidateAllBySeries", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// EpisodesInvalidateAllBySeries indicates an expected call of EpisodesInvalidateAllBySeries.
-func (mr *MockServiceTxMockRecorder) EpisodesInvalidateAllBySeries(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EpisodesInvalidateAllBySeries", reflect.TypeOf((*MockServiceTx)(nil).EpisodesInvalidateAllBySeries), arg0, arg1, arg2, arg3)
-}
-
 // FilmExists mocks base method.
 func (m *MockServiceTx) FilmExists(arg0 context.Context, arg1 int) error {
 	m.ctrl.T.Helper()
@@ -284,20 +256,6 @@ func (m *MockServiceTx) MovieGet(arg0 context.Context, arg1 int) (*models.Film, 
 func (mr *MockServiceTxMockRecorder) MovieGet(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MovieGet", reflect.TypeOf((*MockServiceTx)(nil).MovieGet), arg0, arg1)
-}
-
-// MovieInvalidate mocks base method.
-func (m *MockServiceTx) MovieInvalidate(arg0 context.Context, arg1, arg2 int, arg3 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "MovieInvalidate", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// MovieInvalidate indicates an expected call of MovieInvalidate.
-func (mr *MockServiceTxMockRecorder) MovieInvalidate(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MovieInvalidate", reflect.TypeOf((*MockServiceTx)(nil).MovieInvalidate), arg0, arg1, arg2, arg3)
 }
 
 // MovieUpdate mocks base method.
@@ -401,20 +359,6 @@ func (m *MockServiceTx) SeriesGet(arg0 context.Context, arg1 int) (*models.Serie
 func (mr *MockServiceTxMockRecorder) SeriesGet(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeriesGet", reflect.TypeOf((*MockServiceTx)(nil).SeriesGet), arg0, arg1)
-}
-
-// SeriesInvalidate mocks base method.
-func (m *MockServiceTx) SeriesInvalidate(arg0 context.Context, arg1, arg2 int, arg3 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SeriesInvalidate", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SeriesInvalidate indicates an expected call of SeriesInvalidate.
-func (mr *MockServiceTxMockRecorder) SeriesInvalidate(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeriesInvalidate", reflect.TypeOf((*MockServiceTx)(nil).SeriesInvalidate), arg0, arg1, arg2, arg3)
 }
 
 // SeriesUpdate mocks base method.

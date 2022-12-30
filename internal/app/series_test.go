@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	_ "unsafe"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/repo/mock_repo"
 	"github.com/aria3ppp/watchlist-server/internal/search/mock_search"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
+	"github.com/aria3ppp/watchlist-server/internal/storage/mock_storage"
 	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
@@ -103,7 +106,7 @@ func TestSeriesGet(t *testing.T) {
 				SeriesGet(ctx, id).
 				Return(tc.get.exp.series, tc.get.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			series, err := app.SeriesGet(ctx, id)
 			require.Equal(tc.exp.err, err)
@@ -266,7 +269,7 @@ func TestSeriesesGetAll(t *testing.T) {
 					After(getAllCall)
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			serieses, total, err := app.SeriesesGetAll(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
@@ -358,7 +361,7 @@ func TestSeriesCreate(t *testing.T) {
 				}).
 				Return(tc.create.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			id, err := app.SeriesCreate(ctx, contributorID, req)
 			require.Equal(tc.exp.err, err)
@@ -459,7 +462,7 @@ func TestSeriesUpdate(t *testing.T) {
 				SeriesUpdate(ctx, seriesID, contributorID, seriesUpdateRequestToValidMap(req)).
 				Return(tc.update.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.SeriesUpdate(
 				ctx,
@@ -484,113 +487,53 @@ func TestSeriesInvalidate(t *testing.T) {
 			Invalidation: "invalidation",
 		}
 
-		expEpisodesDeleteAllBySeriesError = errors.New(
-			"EpisodesDeleteAllBySeries error",
-		)
-		expSeriesDeleteError = errors.New("SeriesDelete error")
-		expNotFound          = app.ErrNotFound
+		expError = errors.New("SeriesDelete error")
 	)
 
-	type TxExp struct {
-		err error
-	}
-	type Tx struct {
-		exp TxExp
-	}
 	type SeriesInvalidateExp struct {
 		err error
 	}
 	type SeriesInvalidate struct {
 		exp SeriesInvalidateExp
 	}
-	type EpisodesDeleteAllExp struct {
-		err error
-	}
-	type EpisodeDeleteAll struct {
-		exp EpisodesDeleteAllExp
-	}
 	type Exp struct {
 		err error
 	}
 	type TestCase struct {
-		name                  string
-		tx                    Tx
-		seriesInvalidate      SeriesInvalidate
-		episodesInvalidateAll EpisodeDeleteAll
-		exp                   Exp
+		name             string
+		seriesInvalidate SeriesInvalidate
+		exp              Exp
 	}
 
 	testCases := []TestCase{
 		{
-			name: "SeriesDelete error",
-			tx: Tx{
-				exp: TxExp{
-					err: expSeriesDeleteError,
-				},
-			},
+			name: "error",
 			seriesInvalidate: SeriesInvalidate{
 				exp: SeriesInvalidateExp{
-					err: expSeriesDeleteError,
+					err: expError,
 				},
 			},
 			exp: Exp{
-				err: expSeriesDeleteError,
+				err: expError,
 			},
 		},
 
 		{
 			name: "not found",
-			tx: Tx{
-				exp: TxExp{
-					err: expNotFound,
-				},
-			},
 			seriesInvalidate: SeriesInvalidate{
 				exp: SeriesInvalidateExp{
 					err: repo.ErrNoRecord,
 				},
 			},
 			exp: Exp{
-				err: expNotFound,
-			},
-		},
-
-		{
-			name: "EpisodesInvalidateAllBySeries error",
-			tx: Tx{
-				exp: TxExp{
-					err: expEpisodesDeleteAllBySeriesError,
-				},
-			},
-			seriesInvalidate: SeriesInvalidate{
-				exp: SeriesInvalidateExp{
-					err: nil,
-				},
-			},
-			episodesInvalidateAll: EpisodeDeleteAll{
-				exp: EpisodesDeleteAllExp{
-					err: expEpisodesDeleteAllBySeriesError,
-				},
-			},
-			exp: Exp{
-				err: expEpisodesDeleteAllBySeriesError,
+				err: app.ErrNotFound,
 			},
 		},
 
 		{
 			name: "ok",
-			tx: Tx{
-				exp: TxExp{
-					err: nil,
-				},
-			},
 			seriesInvalidate: SeriesInvalidate{
 				exp: SeriesInvalidateExp{
-					err: nil,
-				},
-			},
-			episodesInvalidateAll: EpisodeDeleteAll{
-				exp: EpisodesDeleteAllExp{
 					err: nil,
 				},
 			},
@@ -609,33 +552,15 @@ func TestSeriesInvalidate(t *testing.T) {
 			controller := gomock.NewController(t)
 			mockRepo := mock_repo.NewMockServiceTx(controller)
 
-			txCall := mockRepo.EXPECT().
-				Transaction(ctx, gomock.Any()).
-				Do(func(ctx context.Context, fn func(_ context.Context, _ repo.Service) error) {
-					fn(ctx, mockRepo)
+			mockRepo.EXPECT().
+				SeriesUpdate(ctx, seriesID, contributorID, map[string]any{
+					models.SeriesColumns.Invalidation: req.Invalidation,
 				}).
-				Return(tc.tx.exp.err)
+				Return(tc.seriesInvalidate.exp.err)
 
-			seriessInvalidate := mockRepo.EXPECT().
-				SeriesInvalidate(ctx, seriesID, contributorID, req.Invalidation).
-				Return(tc.seriesInvalidate.exp.err).
-				After(txCall)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
-			if tc.seriesInvalidate.exp.err == nil {
-				mockRepo.EXPECT().
-					EpisodesInvalidateAllBySeries(ctx, seriesID, contributorID, req.Invalidation).
-					Return(tc.episodesInvalidateAll.exp.err).
-					After(seriessInvalidate)
-			}
-
-			app := app.NewApplication(mockRepo, nil, nil, nil)
-
-			err := app.SeriesInvalidate(
-				ctx,
-				seriesID,
-				contributorID,
-				req,
-			)
+			err := app.SeriesInvalidate(ctx, seriesID, contributorID, req)
 			require.Equal(tc.exp.err, err)
 		})
 	}
@@ -873,7 +798,7 @@ func TestSeriesAuditsGetAll(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			audits, total, err := app.SeriesAuditsGetAll(
 				ctx,
@@ -968,12 +893,158 @@ func TestSeriesesSearch(t *testing.T) {
 				SearchSerieses(ctx, queryOptions).
 				Return(tc.search.exp.serieses, tc.exp.total, tc.search.exp.err)
 
-			app := app.NewApplication(nil, nil, mockSearch, nil)
+			app := app.NewApplication(nil, nil, mockSearch, nil, nil)
 
 			series, total, err := app.SeriesesSearch(ctx, queryOptions)
 			require.Equal(tc.exp.err, err)
 			require.Equal(tc.exp.serieses, series)
 			require.Equal(tc.exp.total, total)
+		})
+	}
+}
+
+func TestSeriesPutPoster(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	var (
+		seriesID      = 1
+		contributorID = 11
+		poster        = strings.NewReader("poster")
+		options       = &storage.PutOptions{}
+
+		expUri               = "expected uri :/"
+		expPutFileError      = errors.New("PutFile error")
+		expSeriesUpdateError = errors.New("SeriesUpdate error")
+	)
+
+	type PutFileExp struct {
+		uri string
+		err error
+	}
+	type PutFile struct {
+		exp PutFileExp
+	}
+	type UpdateSeriesExp struct {
+		err error
+	}
+	type UpdateSeries struct {
+		exp UpdateSeriesExp
+	}
+	type Exp struct {
+		uri string
+		err error
+	}
+	testCases := []struct {
+		name         string
+		putFile      PutFile
+		updateSeries UpdateSeries
+		exp          Exp
+	}{
+		{
+			name: "PutFile error",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: "",
+					err: expPutFileError,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: expPutFileError,
+			},
+		},
+		{
+			name: "not found",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateSeries: UpdateSeries{
+				exp: UpdateSeriesExp{
+					err: repo.ErrNoRecord,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: app.ErrNotFound,
+			},
+		},
+		{
+			name: "SeriesUpdate error",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateSeries: UpdateSeries{
+				exp: UpdateSeriesExp{
+					err: expSeriesUpdateError,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: expSeriesUpdateError,
+			},
+		},
+		{
+			name: "ok",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateSeries: UpdateSeries{
+				exp: UpdateSeriesExp{
+					err: nil,
+				},
+			},
+			exp: Exp{
+				uri: expUri,
+				err: nil,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require := require.New(t)
+
+			controller := gomock.NewController(t)
+			mockStorage := mock_storage.NewMockService(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
+
+			putFileCall := mockStorage.EXPECT().
+				PutFile(ctx, poster, options).
+				Return(tc.putFile.exp.uri, tc.putFile.exp.err)
+
+			if tc.putFile.exp.err == nil {
+				mockRepo.EXPECT().
+					SeriesUpdate(ctx, seriesID, contributorID, map[string]any{
+						models.SeriesColumns.Poster: tc.putFile.exp.uri,
+					}).
+					Return(tc.updateSeries.exp.err).
+					After(putFileCall)
+			}
+
+			app := app.NewApplication(mockRepo, nil, nil, nil, mockStorage)
+
+			uri, err := app.SeriesPutPoster(
+				ctx,
+				seriesID,
+				contributorID,
+				poster,
+				options,
+			)
+			require.Equal(tc.exp.err, err)
+			require.Equal(tc.exp.uri, uri)
 		})
 	}
 }

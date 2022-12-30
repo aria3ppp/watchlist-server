@@ -3,6 +3,7 @@ package app_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	_ "unsafe"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/repo/mock_repo"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
+	"github.com/aria3ppp/watchlist-server/internal/storage/mock_storage"
 	"github.com/aria3ppp/watchlist-server/internal/token"
 	"github.com/aria3ppp/watchlist-server/internal/token/mock_token"
 	"github.com/golang/mock/gomock"
@@ -103,7 +106,7 @@ func TestUserGet(t *testing.T) {
 				UserGet(ctx, id).
 				Return(tc.get.exp.series, tc.get.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			user, err := app.UserGet(ctx, id)
 			require.Equal(tc.exp.err, err)
@@ -339,7 +342,7 @@ func TestUserCreate(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, mockHasher)
+			app := app.NewApplication(mockRepo, nil, nil, mockHasher, nil)
 
 			userID, err := app.UserCreate(ctx, req)
 			require.Equal(tc.exp.err, err)
@@ -615,6 +618,7 @@ func TestUserLogin(t *testing.T) {
 				mockTokenService,
 				nil,
 				mockHasher,
+				nil,
 			)
 
 			tAccess, tRefresh, err := app.UserLogin(ctx, req)
@@ -754,7 +758,7 @@ func TestUserRefreshToken(t *testing.T) {
 					After(validateTokenCall)
 			}
 
-			app := app.NewApplication(nil, mockTokenService, nil, nil)
+			app := app.NewApplication(nil, mockTokenService, nil, nil, nil)
 
 			accessToken, err := app.UserRefreshToken(ctx, refreshToken)
 			require.Equal(tc.exp.err, err)
@@ -847,7 +851,7 @@ func TestUserUpdate(t *testing.T) {
 				UserUpdate(ctx, userID, columns).
 				Return(tc.userUpdate.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.UserUpdate(ctx, userID, req)
 			require.Equal(tc.exp.err, err)
@@ -938,7 +942,7 @@ func TestUserEmailUpdate(t *testing.T) {
 				UserUpdate(ctx, userID, columns).
 				Return(tc.userUpdate.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.UserEmailUpdate(ctx, userID, req)
 			require.Equal(tc.exp.err, err)
@@ -1267,7 +1271,7 @@ func TestUserPasswordUpdate(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, mockHasher)
+			app := app.NewApplication(mockRepo, nil, nil, mockHasher, nil)
 
 			err := app.UserPasswordUpdate(ctx, userID, tc.req)
 			require.Equal(tc.exp.err, err)
@@ -1506,10 +1510,149 @@ func TestUserDelete(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, mockHasher)
+			app := app.NewApplication(mockRepo, nil, nil, mockHasher, nil)
 
 			err := app.UserDelete(ctx, userID, req)
 			require.Equal(tc.exp.err, err)
+		})
+	}
+}
+
+func TestUserPutAvatar(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	var (
+		userID  = 1
+		avatar  = strings.NewReader("avatar")
+		options = &storage.PutOptions{}
+
+		expUri             = "expected uri :/"
+		expPutFileError    = errors.New("PutFile error")
+		expUserUpdateError = errors.New("UserUpdate error")
+	)
+
+	type PutFileExp struct {
+		uri string
+		err error
+	}
+	type PutFile struct {
+		exp PutFileExp
+	}
+	type UpdateUserExp struct {
+		err error
+	}
+	type UpdateUser struct {
+		exp UpdateUserExp
+	}
+	type Exp struct {
+		uri string
+		err error
+	}
+	testCases := []struct {
+		name       string
+		putFile    PutFile
+		updateUser UpdateUser
+		exp        Exp
+	}{
+		{
+			name: "PutFile error",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: "",
+					err: expPutFileError,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: expPutFileError,
+			},
+		},
+		{
+			name: "not found",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateUser: UpdateUser{
+				exp: UpdateUserExp{
+					err: repo.ErrNoRecord,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: app.ErrNotFound,
+			},
+		},
+		{
+			name: "UserUpdate error",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateUser: UpdateUser{
+				exp: UpdateUserExp{
+					err: expUserUpdateError,
+				},
+			},
+			exp: Exp{
+				uri: "",
+				err: expUserUpdateError,
+			},
+		},
+		{
+			name: "ok",
+			putFile: PutFile{
+				exp: PutFileExp{
+					uri: expUri,
+					err: nil,
+				},
+			},
+			updateUser: UpdateUser{
+				exp: UpdateUserExp{
+					err: nil,
+				},
+			},
+			exp: Exp{
+				uri: expUri,
+				err: nil,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require := require.New(t)
+
+			controller := gomock.NewController(t)
+			mockStorage := mock_storage.NewMockService(controller)
+			mockRepo := mock_repo.NewMockServiceTx(controller)
+
+			putFileCall := mockStorage.EXPECT().
+				PutFile(ctx, avatar, options).
+				Return(tc.putFile.exp.uri, tc.putFile.exp.err)
+
+			if tc.putFile.exp.err == nil {
+				mockRepo.EXPECT().
+					UserUpdate(ctx, userID, map[string]any{
+						models.UserColumns.Avatar: tc.putFile.exp.uri,
+					}).
+					Return(tc.updateUser.exp.err).
+					After(putFileCall)
+			}
+
+			app := app.NewApplication(mockRepo, nil, nil, nil, mockStorage)
+
+			uri, err := app.UserPutAvatar(ctx, userID, avatar, options)
+			require.Equal(tc.exp.err, err)
+			require.Equal(tc.exp.uri, uri)
 		})
 	}
 }

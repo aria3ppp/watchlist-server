@@ -21,12 +21,12 @@ func newLogger(file *os.File) *zap.Logger {
 	if file != nil {
 		encoderConfig = zap.NewProductionEncoderConfig()
 		encoder = zapcore.NewJSONEncoder(encoderConfig)
-		writer = zapcore.AddSync(file)
+		writer = zapcore.Lock(file)
 		logLevel = zapcore.InfoLevel
 	} else {
 		encoderConfig = zap.NewDevelopmentEncoderConfig()
 		encoder = zapcore.NewConsoleEncoder(encoderConfig)
-		writer = zapcore.AddSync(os.Stdout)
+		writer = zapcore.Lock(os.Stdout)
 		logLevel = zapcore.DebugLevel
 	}
 

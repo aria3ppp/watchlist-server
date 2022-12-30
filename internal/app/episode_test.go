@@ -108,7 +108,7 @@ func TestEpisodeGet(t *testing.T) {
 				).
 				Return(tc.get.exp.episode, tc.get.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			episode, err := app.EpisodeGet(
 				ctx,
@@ -348,7 +348,7 @@ func TestEpisodesGetAllBySeries(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			episodes, total, err := app.EpisodesGetAllBySeries(
 				ctx,
@@ -589,7 +589,7 @@ func TestEpisodesGetAllBySeason(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			episodes, total, err := app.EpisodesGetAllBySeason(
 				ctx,
@@ -773,7 +773,7 @@ func TestEpisodePut(t *testing.T) {
 					After(seriesGetCall)
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.EpisodePut(
 				ctx,
@@ -971,7 +971,7 @@ func TestEpisodesPutAllBySeason(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.EpisodesPutAllBySeason(
 				ctx,
@@ -1077,7 +1077,7 @@ func TestEpisodeUpdate(t *testing.T) {
 				EpisodeUpdate(ctx, seriesID, seasonNumber, episodeNumber, contributorID, episodeUpdateRequestToValidMap(req)).
 				Return(tc.update.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.EpisodeUpdate(
 				ctx,
@@ -1172,10 +1172,12 @@ func TestEpisodeInvalidate(t *testing.T) {
 			mockRepo := mock_repo.NewMockServiceTx(controller)
 
 			mockRepo.EXPECT().
-				EpisodeInvalidate(ctx, seriesID, seasonNumber, episodeNumber, contributorID, req.Invalidation).
+				EpisodeUpdate(ctx, seriesID, seasonNumber, episodeNumber, contributorID, map[string]any{
+					models.FilmColumns.Invalidation: req.Invalidation,
+				}).
 				Return(tc.episodeInvalidate.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.EpisodeInvalidate(
 				ctx,
@@ -1272,7 +1274,7 @@ func TestEpisodesInvalidateAllBySeason(t *testing.T) {
 				EpisodesInvalidateAllBySeason(ctx, seriesID, seasonNumber, contributorID, req.Invalidation).
 				Return(tc.episodesInvalidateAllBySeason.exp.err)
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			err := app.EpisodesInvalidateAllBySeason(
 				ctx,
@@ -1519,7 +1521,7 @@ func TestEpisodeAuditsGetAll(t *testing.T) {
 				}
 			}
 
-			app := app.NewApplication(mockRepo, nil, nil, nil)
+			app := app.NewApplication(mockRepo, nil, nil, nil, nil)
 
 			audits, total, err := app.EpisodeAuditsGetAll(
 				ctx,

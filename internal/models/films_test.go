@@ -989,7 +989,7 @@ func testFilmsSelect(t *testing.T) {
 }
 
 var (
-	filmDBTypes = map[string]string{`ID`: `integer`, `Title`: `character varying`, `Descriptions`: `character varying`, `DateReleased`: `date`, `Duration`: `integer`, `SeriesID`: `integer`, `SeasonNumber`: `integer`, `EpisodeNumber`: `integer`, `ContributedBy`: `integer`, `ContributedAt`: `timestamp with time zone`, `Invalidation`: `character varying`}
+	filmDBTypes = map[string]string{`ID`: `integer`, `Title`: `character varying`, `Descriptions`: `character varying`, `DateReleased`: `date`, `Duration`: `integer`, `SeriesID`: `integer`, `SeasonNumber`: `integer`, `EpisodeNumber`: `integer`, `Poster`: `character varying`, `ContributedBy`: `integer`, `ContributedAt`: `timestamp with time zone`, `Invalidation`: `character varying`}
 	_           = bytes.MinRead
 )
 

@@ -29,6 +29,7 @@ type SeriesesAudit struct {
 	Descriptions  null.String `boil:"descriptions" json:"descriptions,omitempty" toml:"descriptions" yaml:"descriptions,omitempty"`
 	DateStarted   time.Time   `boil:"date_started" json:"date_started" toml:"date_started" yaml:"date_started"`
 	DateEnded     null.Time   `boil:"date_ended" json:"date_ended,omitempty" toml:"date_ended" yaml:"date_ended,omitempty"`
+	Poster        null.String `boil:"poster" json:"poster,omitempty" toml:"poster" yaml:"poster,omitempty"`
 	ContributedBy int         `boil:"contributed_by" json:"contributed_by" toml:"contributed_by" yaml:"contributed_by"`
 	ContributedAt time.Time   `boil:"contributed_at" json:"contributed_at" toml:"contributed_at" yaml:"contributed_at"`
 	Invalidation  null.String `boil:"invalidation" json:"invalidation,omitempty" toml:"invalidation" yaml:"invalidation,omitempty"`
@@ -43,6 +44,7 @@ var SeriesesAuditColumns = struct {
 	Descriptions  string
 	DateStarted   string
 	DateEnded     string
+	Poster        string
 	ContributedBy string
 	ContributedAt string
 	Invalidation  string
@@ -52,6 +54,7 @@ var SeriesesAuditColumns = struct {
 	Descriptions:  "descriptions",
 	DateStarted:   "date_started",
 	DateEnded:     "date_ended",
+	Poster:        "poster",
 	ContributedBy: "contributed_by",
 	ContributedAt: "contributed_at",
 	Invalidation:  "invalidation",
@@ -63,6 +66,7 @@ var SeriesesAuditTableColumns = struct {
 	Descriptions  string
 	DateStarted   string
 	DateEnded     string
+	Poster        string
 	ContributedBy string
 	ContributedAt string
 	Invalidation  string
@@ -72,6 +76,7 @@ var SeriesesAuditTableColumns = struct {
 	Descriptions:  "serieses_audit.descriptions",
 	DateStarted:   "serieses_audit.date_started",
 	DateEnded:     "serieses_audit.date_ended",
+	Poster:        "serieses_audit.poster",
 	ContributedBy: "serieses_audit.contributed_by",
 	ContributedAt: "serieses_audit.contributed_at",
 	Invalidation:  "serieses_audit.invalidation",
@@ -85,6 +90,7 @@ var SeriesesAuditWhere = struct {
 	Descriptions  whereHelpernull_String
 	DateStarted   whereHelpertime_Time
 	DateEnded     whereHelpernull_Time
+	Poster        whereHelpernull_String
 	ContributedBy whereHelperint
 	ContributedAt whereHelpertime_Time
 	Invalidation  whereHelpernull_String
@@ -94,6 +100,7 @@ var SeriesesAuditWhere = struct {
 	Descriptions:  whereHelpernull_String{field: "\"serieses_audit\".\"descriptions\""},
 	DateStarted:   whereHelpertime_Time{field: "\"serieses_audit\".\"date_started\""},
 	DateEnded:     whereHelpernull_Time{field: "\"serieses_audit\".\"date_ended\""},
+	Poster:        whereHelpernull_String{field: "\"serieses_audit\".\"poster\""},
 	ContributedBy: whereHelperint{field: "\"serieses_audit\".\"contributed_by\""},
 	ContributedAt: whereHelpertime_Time{field: "\"serieses_audit\".\"contributed_at\""},
 	Invalidation:  whereHelpernull_String{field: "\"serieses_audit\".\"invalidation\""},
@@ -116,9 +123,9 @@ func (*seriesesAuditR) NewStruct() *seriesesAuditR {
 type seriesesAuditL struct{}
 
 var (
-	seriesesAuditAllColumns            = []string{"id", "title", "descriptions", "date_started", "date_ended", "contributed_by", "contributed_at", "invalidation"}
+	seriesesAuditAllColumns            = []string{"id", "title", "descriptions", "date_started", "date_ended", "poster", "contributed_by", "contributed_at", "invalidation"}
 	seriesesAuditColumnsWithoutDefault = []string{"id", "title", "date_started", "contributed_by", "contributed_at"}
-	seriesesAuditColumnsWithDefault    = []string{"descriptions", "date_ended", "invalidation"}
+	seriesesAuditColumnsWithDefault    = []string{"descriptions", "date_ended", "poster", "invalidation"}
 	seriesesAuditPrimaryKeyColumns     = []string{"id", "contributed_by", "contributed_at"}
 	seriesesAuditGeneratedColumns      = []string{}
 )

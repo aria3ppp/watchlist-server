@@ -11,8 +11,7 @@ server:
     port: 8080
     # handler_timeout_in_seconds: 2
     handler_timeout_in_seconds: 1000000
-    # shutdown_timeout_in_seconds: 3
-    shutdown_timeout_in_seconds: 1000001
+    shutdown_timeout_in_seconds: 3
 
 token:
     signing_key: ""
@@ -28,7 +27,26 @@ elasticsearch:
     index:
         movies: "movies"
         serieses: "serieses"
-        
+
+minio:
+    url: "minio:9000"
+    root_user: ""
+    root_password: ""
+    bucket:
+        image:
+            name: "img"
+            supported_types:
+                - "image/webp"
+                - "image/png"
+                - "image/jpeg"
+    category:
+        user: "user"
+        series: "series"
+        movie: "movie"
+    filename:
+        user: "avatar"
+        series: "poster"
+        movie: "poster"
       
 pagination:
     page:
@@ -71,6 +89,8 @@ validation:
             max_length: 100
         array:
             max_length: 1000
+        body:
+            max_length: "1024KB"
 
     user:
         email:

@@ -568,7 +568,7 @@ func testSeriesesAuditsSelect(t *testing.T) {
 }
 
 var (
-	seriesesAuditDBTypes = map[string]string{`ID`: `integer`, `Title`: `character varying`, `Descriptions`: `character varying`, `DateStarted`: `date`, `DateEnded`: `date`, `ContributedBy`: `integer`, `ContributedAt`: `timestamp with time zone`, `Invalidation`: `character varying`}
+	seriesesAuditDBTypes = map[string]string{`ID`: `integer`, `Title`: `character varying`, `Descriptions`: `character varying`, `DateStarted`: `date`, `DateEnded`: `date`, `Poster`: `character varying`, `ContributedBy`: `integer`, `ContributedAt`: `timestamp with time zone`, `Invalidation`: `character varying`}
 	_                    = bytes.MinRead
 )
 

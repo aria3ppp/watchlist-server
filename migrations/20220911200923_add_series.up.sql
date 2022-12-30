@@ -7,9 +7,11 @@ CREATE TABLE IF NOT EXISTS serieses (
     descriptions VARCHAR(500),
 
     date_started DATE NOT NULL,
-    date_ended DATE
+    date_ended DATE,
 	-- date_started TIMESTAMPTZ NOT NULL,
     -- date_ended TIMESTAMPTZ
+
+	poster varchar
     
     -- contributed_by INT NOT NULL,
     -- contributed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

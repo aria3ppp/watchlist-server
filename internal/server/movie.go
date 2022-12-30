@@ -9,6 +9,7 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/server/request"
 	"github.com/aria3ppp/watchlist-server/internal/server/response"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 )
@@ -332,4 +333,80 @@ func (s *Server) HandleMoviesSearch(c echo.Context) error {
 			total,
 		),
 	)
+}
+
+// PUT /v1/authorized/movie/:id/poster/
+func (s *Server) HandleMoviePutPoster(c echo.Context) error {
+	var (
+		filename = config.Config.MinIO.Filename.Movie
+		bucket   = config.Config.MinIO.Bucket.Image.Name
+		category = config.Config.MinIO.Category.Movie
+	)
+
+	// bind & validate id param
+	var param request.IDPathParam
+	if httpError := s.bindPath(c, &param); httpError != nil {
+		return httpError
+	}
+
+	// get form file
+	file, fileHeader, httpError := s.getFormFile(c, filename)
+	if httpError != nil {
+		return httpError
+	}
+	defer file.Close()
+
+	// detect content type
+	contentType, httpError := s.ensureSupportedFileType(
+		file,
+		config.Config.MinIO.Bucket.Image.SupportedTypes,
+	)
+	if httpError != nil {
+		return httpError
+	}
+
+	payload, httpError := s.getUserPayload(c)
+	if httpError != nil {
+		return httpError
+	}
+
+	// put poster
+	uri, err := s.app.MoviePutPoster(
+		c.Request().Context(),
+		param.ID,
+		payload.UserID,
+		file,
+		&storage.PutOptions{
+			Bucket:      bucket,
+			Category:    category,
+			CategoryID:  param.ID,
+			Filename:    filename,
+			ContentType: contentType,
+			Size:        fileHeader.Size,
+		},
+	)
+	if err != nil {
+		if err == app.ErrNotFound {
+			s.logger.Info(
+				"server.HandleMoviePutPoster: movie not found",
+				zap.Int("id", param.ID),
+			)
+			return echo.NewHTTPError(
+				http.StatusNotFound,
+				response.Error(response.StatusNotFound),
+			)
+		}
+
+		s.logger.Error(
+			"server.HandleMoviePutPoster: failed putting poster",
+			zap.String("bucket", bucket),
+			zap.Error(err),
+		)
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			response.Error(response.StatusInternalServerError),
+		)
+	}
+
+	return c.JSON(http.StatusOK, response.OK(uri))
 }

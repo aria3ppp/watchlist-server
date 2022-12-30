@@ -2,11 +2,13 @@ package app
 
 import (
 	"context"
+	"io"
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/models"
 	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 )
 
 func (a *Application) MovieGet(
@@ -109,11 +111,13 @@ func (a *Application) MovieInvalidate(
 	contributorID int,
 	req *dto.InvalidationRequest,
 ) error {
-	err := a.repository.MovieInvalidate(
+	err := a.repository.MovieUpdate(
 		ctx,
 		id,
 		contributorID,
-		req.Invalidation,
+		map[string]any{
+			models.FilmColumns.Invalidation: req.Invalidation,
+		},
 	)
 	if err != nil {
 		if err == repo.ErrNoRecord {
@@ -161,4 +165,30 @@ func (a *Application) MoviesSearch(
 	queryOptions query.SearchOptions,
 ) (results []*models.Film, total int, err error) {
 	return a.search.SearchMovies(ctx, queryOptions)
+}
+
+func (a *Application) MoviePutPoster(
+	ctx context.Context,
+	id int,
+	contributorID int,
+	poster io.Reader,
+	options *storage.PutOptions,
+) (uri string, err error) {
+	// put file
+	uri, err = a.storage.PutFile(ctx, poster, options)
+	if err != nil {
+		return "", err
+	}
+	// update movie poster
+	err = a.repository.MovieUpdate(ctx, id, contributorID, map[string]any{
+		models.FilmColumns.Poster: uri,
+	})
+	if err != nil {
+		// TODO: transactional approach is to delete file in storage service on failure
+		if err == repo.ErrNoRecord {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return uri, nil
 }

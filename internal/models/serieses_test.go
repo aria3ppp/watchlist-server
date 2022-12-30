@@ -1005,7 +1005,7 @@ func testSeriesesSelect(t *testing.T) {
 }
 
 var (
-	seriesDBTypes = map[string]string{`ID`: `integer`, `Title`: `character varying`, `Descriptions`: `character varying`, `DateStarted`: `date`, `DateEnded`: `date`, `ContributedBy`: `integer`, `ContributedAt`: `timestamp with time zone`, `Invalidation`: `character varying`}
+	seriesDBTypes = map[string]string{`ID`: `integer`, `Title`: `character varying`, `Descriptions`: `character varying`, `DateStarted`: `date`, `DateEnded`: `date`, `Poster`: `character varying`, `ContributedBy`: `integer`, `ContributedAt`: `timestamp with time zone`, `Invalidation`: `character varying`}
 	_             = bytes.MinRead
 )
 

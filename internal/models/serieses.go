@@ -29,6 +29,7 @@ type Series struct {
 	Descriptions  null.String `boil:"descriptions" json:"descriptions,omitempty" toml:"descriptions" yaml:"descriptions,omitempty"`
 	DateStarted   time.Time   `boil:"date_started" json:"date_started" toml:"date_started" yaml:"date_started"`
 	DateEnded     null.Time   `boil:"date_ended" json:"date_ended,omitempty" toml:"date_ended" yaml:"date_ended,omitempty"`
+	Poster        null.String `boil:"poster" json:"poster,omitempty" toml:"poster" yaml:"poster,omitempty"`
 	ContributedBy int         `boil:"contributed_by" json:"contributed_by" toml:"contributed_by" yaml:"contributed_by"`
 	ContributedAt time.Time   `boil:"contributed_at" json:"contributed_at" toml:"contributed_at" yaml:"contributed_at"`
 	Invalidation  null.String `boil:"invalidation" json:"invalidation,omitempty" toml:"invalidation" yaml:"invalidation,omitempty"`
@@ -43,6 +44,7 @@ var SeriesColumns = struct {
 	Descriptions  string
 	DateStarted   string
 	DateEnded     string
+	Poster        string
 	ContributedBy string
 	ContributedAt string
 	Invalidation  string
@@ -52,6 +54,7 @@ var SeriesColumns = struct {
 	Descriptions:  "descriptions",
 	DateStarted:   "date_started",
 	DateEnded:     "date_ended",
+	Poster:        "poster",
 	ContributedBy: "contributed_by",
 	ContributedAt: "contributed_at",
 	Invalidation:  "invalidation",
@@ -63,6 +66,7 @@ var SeriesTableColumns = struct {
 	Descriptions  string
 	DateStarted   string
 	DateEnded     string
+	Poster        string
 	ContributedBy string
 	ContributedAt string
 	Invalidation  string
@@ -72,6 +76,7 @@ var SeriesTableColumns = struct {
 	Descriptions:  "serieses.descriptions",
 	DateStarted:   "serieses.date_started",
 	DateEnded:     "serieses.date_ended",
+	Poster:        "serieses.poster",
 	ContributedBy: "serieses.contributed_by",
 	ContributedAt: "serieses.contributed_at",
 	Invalidation:  "serieses.invalidation",
@@ -109,6 +114,7 @@ var SeriesWhere = struct {
 	Descriptions  whereHelpernull_String
 	DateStarted   whereHelpertime_Time
 	DateEnded     whereHelpernull_Time
+	Poster        whereHelpernull_String
 	ContributedBy whereHelperint
 	ContributedAt whereHelpertime_Time
 	Invalidation  whereHelpernull_String
@@ -118,6 +124,7 @@ var SeriesWhere = struct {
 	Descriptions:  whereHelpernull_String{field: "\"serieses\".\"descriptions\""},
 	DateStarted:   whereHelpertime_Time{field: "\"serieses\".\"date_started\""},
 	DateEnded:     whereHelpernull_Time{field: "\"serieses\".\"date_ended\""},
+	Poster:        whereHelpernull_String{field: "\"serieses\".\"poster\""},
 	ContributedBy: whereHelperint{field: "\"serieses\".\"contributed_by\""},
 	ContributedAt: whereHelpertime_Time{field: "\"serieses\".\"contributed_at\""},
 	Invalidation:  whereHelpernull_String{field: "\"serieses\".\"invalidation\""},
@@ -161,9 +168,9 @@ func (r *seriesR) GetSeriesFilms() FilmSlice {
 type seriesL struct{}
 
 var (
-	seriesAllColumns            = []string{"id", "title", "descriptions", "date_started", "date_ended", "contributed_by", "contributed_at", "invalidation"}
+	seriesAllColumns            = []string{"id", "title", "descriptions", "date_started", "date_ended", "poster", "contributed_by", "contributed_at", "invalidation"}
 	seriesColumnsWithoutDefault = []string{"title", "date_started", "contributed_by"}
-	seriesColumnsWithDefault    = []string{"id", "descriptions", "date_ended", "contributed_at", "invalidation"}
+	seriesColumnsWithDefault    = []string{"id", "descriptions", "date_ended", "poster", "contributed_at", "invalidation"}
 	seriesPrimaryKeyColumns     = []string{"id"}
 	seriesGeneratedColumns      = []string{}
 )

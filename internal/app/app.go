@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"io"
 
 	"github.com/aria3ppp/watchlist-server/internal/dto"
 	"github.com/aria3ppp/watchlist-server/internal/hasher"
@@ -9,6 +10,7 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/repo"
 	"github.com/aria3ppp/watchlist-server/internal/search"
+	"github.com/aria3ppp/watchlist-server/internal/storage"
 	"github.com/aria3ppp/watchlist-server/internal/token"
 	"github.com/aria3ppp/watchlist-server/internal/watchlist"
 )
@@ -51,6 +53,12 @@ type Service interface {
 		ctx context.Context,
 		refreshToken string,
 	) (accessToken string, err error)
+	UserPutAvatar(
+		ctx context.Context,
+		userID int,
+		avatar io.Reader,
+		options *storage.PutOptions,
+	) (uri string, err error)
 
 	// Movie
 	MovieGet(ctx context.Context, id int) (*models.Film, error)
@@ -84,6 +92,13 @@ type Service interface {
 		ctx context.Context,
 		queryOptions query.SearchOptions,
 	) (results []*models.Film, total int, err error)
+	MoviePutPoster(
+		ctx context.Context,
+		id int,
+		contributorID int,
+		poster io.Reader,
+		options *storage.PutOptions,
+	) (uri string, err error)
 
 	// Series
 	SeriesGet(ctx context.Context, id int) (*models.Series, error)
@@ -117,6 +132,13 @@ type Service interface {
 		ctx context.Context,
 		queryOptions query.SearchOptions,
 	) (results []*models.Series, total int, err error)
+	SeriesPutPoster(
+		ctx context.Context,
+		id int,
+		contributorID int,
+		poster io.Reader,
+		options *storage.PutOptions,
+	) (uri string, err error)
 
 	// Episode
 	EpisodeGet(
@@ -199,6 +221,7 @@ type Application struct {
 	token      token.Service
 	search     search.Service
 	hasher     hasher.Interface
+	storage    storage.Service
 }
 
 var _ Service = (*Application)(nil)
@@ -208,11 +231,13 @@ func NewApplication(
 	tokenService token.Service,
 	searchService search.Service,
 	hasher hasher.Interface,
+	storage storage.Service,
 ) *Application {
 	return &Application{
 		repository: repo,
 		token:      tokenService,
 		search:     searchService,
 		hasher:     hasher,
+		storage:    storage,
 	}
 }

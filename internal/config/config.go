@@ -1,14 +1,6 @@
 package config
 
-import (
-	"github.com/ilyakaznacheev/cleanenv"
-)
-
-var Config config
-
-func Load(configPath string) error {
-	return cleanenv.ReadConfig(configPath, &Config)
-}
+var Config *config = initConfig("config.yml")
 
 type config struct {
 	Postgres struct {
@@ -49,6 +41,28 @@ type config struct {
 		} `yaml:"index" env-required:"true"`
 	} `yaml:"elasticsearch" env-required:"true"`
 
+	MinIO struct {
+		Url          string `yaml:"url" env:"MINIO_URL" env-required:"true"`
+		RootUser     string `yaml:"root_user" env:"MINIO_ROOT_USER" env-required:"true"`
+		RootPassword string `yaml:"root_password" env:"MINIO_ROOT_PASSWORD" env-required:"true"`
+		Bucket       struct {
+			Image struct {
+				Name           string   `yaml:"name" env-required:"true"`
+				SupportedTypes []string `yaml:"supported_types" env-required:"true"`
+			} `yaml:"image" env-required:"true"`
+		} `yaml:"bucket" env-required:"true"`
+		Category struct {
+			User   string `yaml:"user" env-required:"true"`
+			Series string `yaml:"series" env-required:"true"`
+			Movie  string `yaml:"movie" env-required:"true"`
+		} `yaml:"category" env-required:"true"`
+		Filename struct {
+			User   string `yaml:"user" env-required:"true"`
+			Series string `yaml:"series" env-required:"true"`
+			Movie  string `yaml:"movie" env-required:"true"`
+		} `yaml:"filename" env-required:"true"`
+	} `yaml:"minio" env-required:"true"`
+
 	Pagination struct {
 		Page struct {
 			MinValue int `yaml:"min_value" env-required:"true"`
@@ -75,6 +89,9 @@ type config struct {
 			Array struct {
 				MaxLength int `yaml:"max_length" env-required:"true"`
 			} `yaml:"array" env-required:"true"`
+			Body struct {
+				MaxLength string `yaml:"max_length" env-required:"true"`
+			} `yaml:"body" env-required:"true"`
 		} `yaml:"request" env-required:"true"`
 
 		User struct {

@@ -74,31 +74,6 @@ func (repo *Repository) SeriesUpdate(
 	return nil
 }
 
-func (repo *Repository) SeriesInvalidate(
-	ctx context.Context,
-	serieID int,
-	contributorID int,
-	invalidation string,
-) error {
-	rowsAff, err := models.Serieses(
-		models.SeriesWhere.ID.EQ(serieID),
-	).UpdateAll(
-		ctx,
-		repo.exec,
-		map[string]any{
-			models.SeriesColumns.Invalidation:  invalidation,
-			models.SeriesColumns.ContributedBy: contributorID,
-		},
-	)
-	if err != nil {
-		return err
-	}
-	if rowsAff == 0 {
-		return ErrNoRecord
-	}
-	return nil
-}
-
 func (repo *Repository) SeriesAuditsGetAll(
 	ctx context.Context,
 	id int,
