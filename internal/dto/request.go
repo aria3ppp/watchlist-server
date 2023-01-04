@@ -17,7 +17,7 @@ func emailValidationRules() []validation.Rule {
 			config.Config.Validation.User.Email.MinLength,
 			config.Config.Validation.User.Email.MaxLength,
 		),
-		is.Email,
+		is.EmailFormat,
 	}
 }
 
