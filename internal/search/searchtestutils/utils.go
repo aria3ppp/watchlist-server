@@ -3,12 +3,12 @@ package searchtestutils
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 	_ "unsafe"
 
+	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )
@@ -70,7 +70,7 @@ func DeleteIndexWait(
 		}
 	}
 
-	err := WaitUntil(
+	err := testutils.WaitUntil(
 		func() (done bool, err error) {
 			for _, idx := range index {
 				if exists, err := IndexExists(client, idx); err != nil {
@@ -104,30 +104,6 @@ func IndexExists(
 		return false, responseError(resp)
 	}
 	return true, nil
-}
-
-// TODO: Delete this function and use testutils.WaitUntil instead
-func WaitUntil(
-	f func() (done bool, err error),
-	timeout, cooldown time.Duration,
-) error {
-	t := time.After(timeout)
-	for {
-		select {
-		case <-t:
-			return fmt.Errorf(
-				"searchtestutils.WaitUntil: %s timeout exceeded",
-				timeout,
-			)
-		default:
-			if ok, err := f(); err != nil {
-				return err
-			} else if ok {
-				return nil
-			}
-		}
-		time.Sleep(cooldown)
-	}
 }
 
 /*

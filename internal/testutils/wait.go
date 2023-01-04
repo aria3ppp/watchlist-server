@@ -18,9 +18,9 @@ func WaitUntil(
 				timeout,
 			)
 		default:
-			if ok, err := f(); err != nil {
+			if done, err := f(); err != nil {
 				return err
-			} else if ok {
+			} else if done {
 				return nil
 			}
 		}

@@ -930,7 +930,7 @@ func TestHandleMoviesSearch(t *testing.T) {
 	}
 
 	// wait until movie got index
-	err := searchtestutils.WaitUntil(
+	err := testutils.WaitUntil(
 		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,

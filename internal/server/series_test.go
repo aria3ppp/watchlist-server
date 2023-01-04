@@ -926,7 +926,7 @@ func TestHandleSeriesesSearch(t *testing.T) {
 	}
 
 	// wait until series got index
-	err := searchtestutils.WaitUntil(
+	err := testutils.WaitUntil(
 		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,

@@ -13,6 +13,7 @@ import (
 	"github.com/aria3ppp/watchlist-server/internal/query"
 	"github.com/aria3ppp/watchlist-server/internal/search"
 	"github.com/aria3ppp/watchlist-server/internal/search/searchtestutils"
+	"github.com/aria3ppp/watchlist-server/internal/testutils"
 	"github.com/stretchr/testify/require"
 	"github.com/volatiletech/null/v8"
 )
@@ -177,7 +178,7 @@ func TestSearchSerieses(t *testing.T) {
 	}
 
 	// wait until all documents are indexed
-	err = searchtestutils.WaitUntil(
+	err = testutils.WaitUntil(
 		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,
@@ -378,7 +379,7 @@ func TestSearchMovies(t *testing.T) {
 	}
 
 	// wait until all documents are indexed
-	err = searchtestutils.WaitUntil(
+	err = testutils.WaitUntil(
 		func() (bool, error) {
 			c, err := searchtestutils.CountIndex(
 				esClient,
