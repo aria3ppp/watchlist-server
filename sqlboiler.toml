@@ -1,0 +1,27 @@
+wipe = true
+tag = ["db"] # github.com/blockloop/scan.Row(s)Strict needs a `db` tag 
+tag-ignore = ["users.password_hash", "watchfilms.user_id", "watchfilms.film_id"]
+
+[aliases.tables.serieses]
+up_plural     = "Serieses"
+up_singular   = "Series"
+down_plural   = "serieses"
+down_singular = "series"
+
+[aliases.tables.serieses.relationships.serieses_contributed_by_fk_users]
+local = "ContributedSerieses"
+foreign = "ContributingUser"
+
+[aliases.tables.films.relationships.films_contributed_by_fk_users]
+local = "ContributedFilms"
+foreign = "ContributingUser"
+
+[psql]
+blacklist = ["schema_migrations"]
+
+dbname = "watchlist-server"
+host   = "localhost"
+port = 54321
+user = "watchlist-server"
+pass = "watchlist-server"
+sslmode = "disable"

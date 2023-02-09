@@ -1,0 +1,119 @@
+version: "3"
+
+services:
+  healthchecker:
+    image: hello-world
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
+      # kibana:
+      #   condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:14-alpine
+    env_file: .env
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    command: -p ${POSTGRES_PORT}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -p $${POSTGRES_PORT} -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  elasticsearch:
+    image: elasticsearch:8.4.0
+    ports:
+      - 9200:9200
+    environment:
+      - ES_JAVA_OPTS=-Xmx384m -Xms256m
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 512m
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:9200 | grep -q 'HTTP/1.1 200 OK'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  logstash:
+    build:
+      context: logstash
+      args:
+        - LOGSTASH_VERSION=8.4.0
+        - JDBC_POSTGRES_DRIVER_VERSION=42.4.2
+    env_file: .env
+    environment:
+      - LS_JAVA_OPTS=-Xmx450m -Xms300m
+    volumes:
+      - ./logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml
+      - ./logstash/pipeline/:/usr/share/logstash/pipeline/
+      - ./logstash/queries/:/usr/share/logstash/config/queries/
+    mem_limit: 600m
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:9600 | grep -q 'HTTP/1.1 200 OK'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  # kibana:
+  #   image: kibana:8.4.0
+  #   ports:
+  #     - 5601:5601
+  #   environment:
+  #     - JAVA_OPTS=-Xmx384m -Xms256m
+  #   mem_limit: 512m
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test:
+  #       [
+  #         "CMD-SHELL",
+  #         "curl -s -I http://localhost:5601 | grep -q 'HTTP/1.1 302 Found'",
+  #       ]
+  #     interval: 10s
+  #     timeout: 10s
+  #     retries: 120
+
+  minio:
+    image: quay.io/minio/minio:latest
+    env_file: .env
+    ports:
+      - 9000:9000
+      - 9090:9090
+    command: server /data --console-address ":9090"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl --fail http://localhost:9000/minio/health/live",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120

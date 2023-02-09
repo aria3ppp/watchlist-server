@@ -1,0 +1,2691 @@
+{
+  "openapi": "3.0.0",
+  "x-stoplight": {
+    "id": "g30zctc7ipws6"
+  },
+  "info": {
+    "title": "watchlist-api",
+    "version": "1.0",
+    "description": "# Watchlist\n\nWatchlist provides a convenient way for users to manage a list of movies and episodes they want to watch, and also create new movies and series.\n\n[![Tests](https://github.com/aria3ppp/watchlist-server/actions/workflows/tests.yml/badge.svg)](https://github.com/aria3ppp/watchlist-server/actions/workflows/tests.yml)\n[![Coverage Status](https://coveralls.io/repos/github/aria3ppp/watchlist-server/badge.svg)](https://coveralls.io/github/aria3ppp/watchlist-server)\n\n## Code Architecture\nThe Watchlist API is developed in Go language and leverages the Echo router. It follows a modular, three-layer architecture with Transport, Application, and Repository layers. This design ensures single responsibility, better scalability and efficient data storage through the Repository pattern. The code is thoroughly tested with gomock and has comprehensive integration and end-to-end tests to guarantee seamless integration of third-party services and a fully functional API.\n\nUsers can sign up, log in, and authorize using JWT tokens. The API also enables token refresh to avoid repetitive logins. User security is prioritized with secure bcrypt hashing of passwords and refresh tokens.\n\nThe Watchlist API offers users a history of changes made by others to movies, series, and episodes. It has a robust search functionality powered by Elasticsearch and uses MinIO to store user avatars and movie and series posters.\n\n## Installation\nprerequisite:\n\n- Docker and Docker compose\n- Golang >=1.19\n- Make\n\nTo clone project:\n\n```bash\ngit clone https://github.com/aria3ppp/watchlist-server.git\n```\n\n\nTo run the server in containers:\n\n```bash\nmake server-up\n```\n\nTo run tests:\n\n```bash\nmake services-up && make test-all-cover\n```\n\nNow the local api documentation is available at [http://localhost:8080/v1/openapi](http://localhost:8080/v1/openapi).\n\nThe api documentation is also available to read for everyone at [http://aria3ppp.ir:8080/v1/openapi](http://aria3ppp.ir:8080/v1/openapi).\n\nOAS3.0 openapi specs: [http://aria3ppp.ir:8080/v1/openapi/openapi.json](http://aria3ppp.ir:8080/v1/openapi/openapi.json)."
+  },
+  "servers": [
+    {
+      "url": "http://aria3ppp.ir:8080"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": ""
+    }
+  ],
+  "paths": {
+    "/v1/authorized/user/{id}": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-user-id",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Get user by id"
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ]
+    },
+    "/v1/user": {
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-user",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/IDResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "409": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UserCreateRequest"
+        },
+        "description": "Register a new user with a unique email and a strong password.\nOther attributes are optional"
+      }
+    },
+    "/v1/user/login": {
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-user-login",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/UserLoginResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UserLoginRequest"
+        },
+        "description": "Login user with previosly reqistered email and password.\nA successful login provide a pair of jwt and refresh token with corresponding expires time in seconds.\nA user id is also provided used in refresh and logout operations beside refresh token."
+      }
+    },
+    "/v1/user/{id}/logout": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-user-id-logout",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/TokenBody"
+        },
+        "description": "Logout requires the refresh token and the user id"
+      }
+    },
+    "/v1/user/{id}/refresh": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-user-id-refresh",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/UserRefreshResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/TokenBody"
+        },
+        "description": "Refresh user jwt token. requires the user id and refresh token string in request body"
+      }
+    },
+    "/v1/authorized/user": {
+      "patch": {
+        "summary": "",
+        "operationId": "patch-v1-authorized-user",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UserUpdateRequest"
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Update user attributes. Only provided field are applied for update so all fields are optional"
+      }
+    },
+    "/v1/authorized/user/delete": {
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-user-delete",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UserDeleteRequest"
+        },
+        "description": "Delete user with password"
+      }
+    },
+    "/v1/authorized/user/email": {
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-user-email",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UserEmailUpdateRequest"
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Change user email"
+      }
+    },
+    "/v1/authorized/user/password": {
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-user-password",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UserPasswordUpdateRequest"
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Change user password with both new and past password"
+      }
+    },
+    "/v1/authorized/user/avatar": {
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-user-avatar",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/URIResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/AvatarFileBody"
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Change user avatar with avatar image passed as a multipart form data \"avatar\""
+      }
+    },
+    "/v1/authorized/series/{id}/season/{season_number}/episode/{episode_number}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/season_number"
+        },
+        {
+          "$ref": "#/components/parameters/episode_number"
+        }
+      ],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Film"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-id-season-season_number-episode-episode_number",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Get episode by series id and season number and episode number."
+      },
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-series-id-season-season_number-episode-episode_number",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FilmCreateRequest"
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Create (replace) new episode by series id and season number and episode number."
+      },
+      "patch": {
+        "summary": "",
+        "operationId": "patch-v1-authorized-series-id-season-season_number-episode-episode_number",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FilmUpdateRequest"
+        },
+        "description": "Update episode by setting the corresponding fields in request body."
+      }
+    },
+    "/v1/authorized/series/{id}/episode": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedFilmResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-id-episode",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          }
+        ],
+        "description": "Get all episodes of a series identified by id.\nYou can customize the response by providing paginationand sort order queries."
+      }
+    },
+    "/v1/authorized/series/{id}/season/{season_number}/episode": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/season_number"
+        }
+      ],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedFilmResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-id-season-season_number-episode",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          }
+        ],
+        "description": "Get all episodes of a season season_number from series identified by id."
+      },
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-series-id-season-season_number-episode",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/EpisodesPutAllBySeasonRequest"
+        },
+        "description": "Set all (override) episodes of a season season_number from series identified by id. Provide a list of films that ordered by corresponding episode number in request body."
+      }
+    },
+    "/v1/authorized/series/{id}/season/{season_number}/episode/{episode_number}/invalidate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/season_number"
+        },
+        {
+          "$ref": "#/components/parameters/episode_number"
+        }
+      ],
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-series-id-season-season_number-episode-episode_number-invalidate",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InvalidationRequest"
+        },
+        "description": "Invalidate an episode by proving invalidation field in request body"
+      }
+    },
+    "/v1/authorized/series/{id}/season/{season_number}/episode/invalidate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/season_number"
+        }
+      ],
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-series-id-season-season_number-episode-invalidate",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InvalidationRequest"
+        },
+        "description": "Invalidate all episodes in a season by providing invalidation field in request body"
+      }
+    },
+    "/v1/authorized/series/{id}/season/{season_number}/episode/{episode_number}/audits": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedFilmResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-id-season-season_number-episode-episode_number-audits",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          }
+        ],
+        "description": "Get an episode history of all changes made by other users"
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        },
+        {
+          "$ref": "#/components/parameters/season_number"
+        },
+        {
+          "$ref": "#/components/parameters/episode_number"
+        }
+      ]
+    },
+    "/v1/authorized/movie/{id}": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Film"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-movie-id",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Get a movie by id"
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "patch": {
+        "summary": "",
+        "operationId": "patch-v1-authorized-movie-id",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FilmUpdateRequest"
+        },
+        "description": "Update a movie by id."
+      }
+    },
+    "/v1/authorized/movie": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedFilmResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-movie",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          },
+          {
+            "$ref": "#/components/parameters/sort_field"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          }
+        ],
+        "description": "Get all movies with optional pagination and sort queries."
+      },
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-movie",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/IDResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/FilmCreateRequest"
+        },
+        "description": "Create a new movie by providing film attributes in request body."
+      }
+    },
+    "/v1/authorized/movie/{id}/invalidate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-movie-id-invalidate",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InvalidationRequest"
+        },
+        "description": "Invalidate a movie by providing invalidation field in request body."
+      }
+    },
+    "/v1/authorized/movie/{id}/audits": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedFilmResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-movie-id-audits",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Get a movie's history of all changes made by other users"
+      }
+    },
+    "/v1/authorized/movie/search": {
+      "parameters": [],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedFilmResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-movie-search",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/query"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          }
+        ],
+        "description": "Search for movies with a query in title and descriptions"
+      }
+    },
+    "/v1/authorized/movie/{id}/poster": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-movie-id-poster",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/URIResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/PosterFileBody"
+        },
+        "description": "Set a movie's poster by providing \"poster\" multipart form data"
+      }
+    },
+    "/v1/authorized/series/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Series"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-id",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Get a series with id"
+      },
+      "patch": {
+        "summary": "",
+        "operationId": "patch-v1-authorized-series-id",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SeriesUpdateRequest"
+        },
+        "description": "Update a series with id"
+      }
+    },
+    "/v1/authorized/series": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedSeriesResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          },
+          {
+            "$ref": "#/components/parameters/sort_field"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          }
+        ],
+        "description": "Get all series by providing optional pagination and sort queries."
+      },
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-series",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/IDResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/SeriesCreateRequest"
+        },
+        "description": "Create a series by providng series attributes in request body."
+      }
+    },
+    "/v1/authorized/series/{id}/invalidate": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-series-id-invalidate",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InvalidationRequest"
+        },
+        "description": "Invalidate a series by invalidation field in request body"
+      }
+    },
+    "/v1/authorized/series/{id}/audits": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedSeriesResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-id-audits",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          }
+        ],
+        "description": "Get a series's history of allchanges made by other users"
+      }
+    },
+    "/v1/authorized/series/search": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedSeriesResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-series-search",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/query"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          }
+        ],
+        "description": "Search for a series by a query in title or descriptions"
+      }
+    },
+    "/v1/authorized/series/{id}/poster": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "put": {
+        "summary": "",
+        "operationId": "put-v1-authorized-series-id-poster",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/URIResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "415": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/PosterFileBody"
+        },
+        "description": "Set a series poster by providing \"poster\" multipart form data"
+      }
+    },
+    "/v1/authorized/watchlist": {
+      "get": {
+        "summary": "Your GET endpoint",
+        "tags": [],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedWatchItemResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "operationId": "get-v1-authorized-watchlist",
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/filter"
+          },
+          {
+            "$ref": "#/components/parameters/sort_order"
+          },
+          {
+            "$ref": "#/components/parameters/page"
+          },
+          {
+            "$ref": "#/components/parameters/page_size"
+          }
+        ],
+        "description": "Get a user's watchlist by optional filters and pagination queries"
+      }
+    },
+    "/v1/authorized/watchlist/add": {
+      "post": {
+        "summary": "",
+        "operationId": "post-v1-authorized-watchlist-add",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/IDResponse"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/film_id"
+          }
+        ],
+        "description": "Add a new film (movie or episode) by film_id query"
+      }
+    },
+    "/v1/authorized/watchlist/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/id"
+        }
+      ],
+      "delete": {
+        "summary": "",
+        "operationId": "delete-v1-authorized-watchlist-id",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Delete a film from watchlist by watch id"
+      },
+      "patch": {
+        "summary": "",
+        "operationId": "patch-v1-authorized-watchlist-id",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "401": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "413": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/ErrorMessageResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TimeoutResponse"
+          }
+        },
+        "security": [
+          {
+            "jwt-token": []
+          }
+        ],
+        "description": "Set a film in watchlist as watched by watch id"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "title": "User",
+        "x-stoplight": {
+          "id": "35xiuo1iyqrna"
+        },
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "minLength": 8,
+            "maxLength": 40
+          },
+          "first_name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 20
+          },
+          "last_name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 20
+          },
+          "bio": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "birthdate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "jointime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "avatar": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "birthdate",
+          "jointime"
+        ]
+      },
+      "Series": {
+        "title": "Series",
+        "x-stoplight": {
+          "id": "fl9533qd6fzwb"
+        },
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "descriptions": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "date_started": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "date_ended": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "poster": {
+            "type": "string"
+          },
+          "contributed_by": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "contributed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invalidation": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "date_started",
+          "contributed_by",
+          "contributed_at"
+        ]
+      },
+      "Film": {
+        "title": "Film",
+        "x-stoplight": {
+          "id": "sltpmcyrot728"
+        },
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "descriptions": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "date_released": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 100000
+          },
+          "series_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "season_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "episode_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "poster": {
+            "type": "string"
+          },
+          "contributed_by": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "contributed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invalidation": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "date_released",
+          "contributed_by",
+          "contributed_at"
+        ]
+      },
+      "WatchItem": {
+        "title": "WatchItem",
+        "x-stoplight": {
+          "id": "5gd6gtpoyl0jp"
+        },
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "time_added": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "time_watched": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "film": {
+            "$ref": "#/components/schemas/Film"
+          }
+        },
+        "required": [
+          "id",
+          "time_added",
+          "film"
+        ]
+      },
+      "FilmCreateRequest": {
+        "title": "FilmCreateRequest",
+        "x-stoplight": {
+          "id": "8hel34o5jt4km"
+        },
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "descriptions": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500
+          },
+          "date_released": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "title",
+          "date_released"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "jwt-token": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "parameters": {
+      "id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "season_number": {
+        "name": "season_number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "episode_number": {
+        "name": "episode_number",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "page_size": {
+        "name": "page_size",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
+      },
+      "sort_field": {
+        "name": "sort_field",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "sort_order": {
+        "name": "sort_order",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "query": {
+        "name": "query",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        }
+      },
+      "film_id": {
+        "name": "film_id",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "filter": {
+        "name": "filter",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "watched",
+            "not-watched",
+            "all"
+          ]
+        }
+      }
+    },
+    "requestBodies": {
+      "UserCreateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "minLength": 8,
+                  "maxLength": 40
+                },
+                "password": {
+                  "type": "string",
+                  "format": "password",
+                  "minLength": 8,
+                  "maxLength": 40
+                },
+                "first_name": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20
+                },
+                "last_name": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20
+                },
+                "bio": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 500
+                },
+                "birthdate": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "email",
+                "password"
+              ]
+            }
+          }
+        }
+      },
+      "UserLoginRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "minLength": 8,
+                  "maxLength": 40
+                },
+                "password": {
+                  "type": "string",
+                  "format": "password",
+                  "minLength": 8,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "email",
+                "password"
+              ]
+            }
+          }
+        }
+      },
+      "UserUpdateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "first_name": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20
+                },
+                "last_name": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20
+                },
+                "bio": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 500
+                },
+                "birthdate": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UserEmailUpdateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "format": "email",
+                  "minLength": 8,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "email"
+              ]
+            }
+          }
+        }
+      },
+      "UserPasswordUpdateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "current_password": {
+                  "type": "string",
+                  "format": "password",
+                  "minLength": 8,
+                  "maxLength": 40
+                },
+                "new_password": {
+                  "type": "string",
+                  "format": "password",
+                  "minLength": 8,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "current_password",
+                "new_password"
+              ]
+            }
+          }
+        }
+      },
+      "UserDeleteRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "password": {
+                  "type": "string",
+                  "format": "password",
+                  "minLength": 8,
+                  "maxLength": 40
+                }
+              },
+              "required": [
+                "password"
+              ]
+            }
+          }
+        }
+      },
+      "SeriesCreateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 100
+                },
+                "descriptions": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 500
+                },
+                "date_started": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "date_ended": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "title",
+                "date_started"
+              ]
+            }
+          }
+        }
+      },
+      "SeriesUpdateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 100
+                },
+                "descriptions": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 500
+                },
+                "date_started": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "date_ended": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "FilmCreateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/FilmCreateRequest"
+            }
+          }
+        }
+      },
+      "FilmUpdateRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 100
+                },
+                "descriptions": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 500
+                },
+                "date_released": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "duration": {
+                  "type": "integer",
+                  "minimum": 60,
+                  "maximum": 100000
+                }
+              }
+            }
+          }
+        }
+      },
+      "EpisodesPutAllBySeasonRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "episodes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1000,
+                  "items": {
+                    "$ref": "#/components/schemas/FilmCreateRequest"
+                  }
+                }
+              },
+              "required": [
+                "episodes"
+              ]
+            }
+          }
+        }
+      },
+      "InvalidationRequest": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "invalidation": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "minLength": 10
+                }
+              },
+              "required": [
+                "invalidation"
+              ]
+            }
+          }
+        }
+      },
+      "TokenBody": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "token": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "token"
+              ]
+            }
+          }
+        }
+      },
+      "AvatarFileBody": {
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "avatar": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "required": [
+                "avatar"
+              ]
+            }
+          }
+        }
+      },
+      "PosterFileBody": {
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "poster": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "required": [
+                "poster"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "UserRefreshResponse": {
+        "description": "JWT token with expire time in seconds",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "jwt_token": {
+                  "type": "string"
+                },
+                "jwt_expires_at": {
+                  "type": "integer",
+                  "format": "int64"
+                }
+              },
+              "required": [
+                "jwt_token",
+                "jwt_expires_at"
+              ]
+            }
+          }
+        }
+      },
+      "UserLoginResponse": {
+        "description": "Pair of jwt and refresh token with corresponding expire time in seconds with the user id",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "jwt_token": {
+                  "type": "string"
+                },
+                "jwt_expires_at": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "refresh_token": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "refresh_expires_at": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "user_id": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "jwt_token",
+                "jwt_expires_at",
+                "refresh_token",
+                "refresh_expires_at",
+                "user_id"
+              ]
+            }
+          }
+        }
+      },
+      "PaginatedFilmResponse": {
+        "description": "Paginated list of films with page number and page sized provided by user and total number of pages and films",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "page": {
+                  "type": "integer"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                "total_pages": {
+                  "type": "integer"
+                },
+                "total_items": {
+                  "type": "integer"
+                },
+                "items": {
+                  "type": "array",
+                  "maxItems": 1000,
+                  "items": {
+                    "$ref": "#/components/schemas/Film"
+                  }
+                }
+              },
+              "required": [
+                "page",
+                "page_size",
+                "total_pages",
+                "total_items",
+                "items"
+              ]
+            }
+          }
+        }
+      },
+      "ErrorMessageResponse": {
+        "description": "Error message with optional error field",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "error": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "IDResponse": {
+        "description": "A resource's id that just created",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "id"
+              ]
+            }
+          }
+        }
+      },
+      "URIResponse": {
+        "description": "URI to the user avatar or movie / series poster",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "uri": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "uri"
+              ]
+            }
+          }
+        }
+      },
+      "PaginatedSeriesResponse": {
+        "description": "Paginated list of serieses with page number and page sized provided by user and total number of pages and serieses",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "page": {
+                  "type": "integer"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                "total_pages": {
+                  "type": "integer"
+                },
+                "total_items": {
+                  "type": "integer"
+                },
+                "items": {
+                  "type": "array",
+                  "maxItems": 1000,
+                  "items": {
+                    "$ref": "#/components/schemas/Series"
+                  }
+                }
+              },
+              "required": [
+                "page",
+                "page_size",
+                "total_pages",
+                "total_items",
+                "items"
+              ]
+            }
+          }
+        }
+      },
+      "PaginatedWatchItemResponse": {
+        "description": "Paginated list of watchlist items with page number and page sized provided by user and total number of pages and watchlist items",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "page": {
+                  "type": "integer"
+                },
+                "page_size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                },
+                "total_pages": {
+                  "type": "integer"
+                },
+                "total_items": {
+                  "type": "integer"
+                },
+                "items": {
+                  "type": "array",
+                  "maxItems": 1000,
+                  "items": {
+                    "$ref": "#/components/schemas/WatchItem"
+                  }
+                }
+              },
+              "required": [
+                "page",
+                "page_size",
+                "total_pages",
+                "total_items",
+                "items"
+              ]
+            }
+          }
+        }
+      },
+      "TimeoutResponse": {
+        "description": "Request timeout error",
+        "content": {
+          "text/html": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

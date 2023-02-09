@@ -1,0 +1,121 @@
+postgres:
+    db: ""
+    user: ""
+    password: ""
+    host: "postgres"
+    port: 5432
+
+server:
+    production: false
+    logfile: ""
+    port: 8080
+    handler_timeout_in_seconds: 5
+    shutdown_timeout_in_seconds: 6
+
+auth:
+    ecdsa_signing_key_base64: "" # $ base64 -w 0 ecdsa-private-key.pem
+    expire_in_secs:
+        jwt: 600 # 10 minutes
+        refresh: 2592000 # 30 days
+
+elasticsearch:
+    url: "http://elasticsearch:9200"
+    index:
+        movies: "movies"
+        serieses: "serieses"
+
+minio:
+    url: "minio:9000"
+    root_user: ""
+    root_password: ""
+    bucket:
+        image:
+            name: "img"
+            supported_types:
+                - "image/webp"
+                - "image/png"
+                - "image/jpeg"
+    category:
+        user: "user"
+        series: "series"
+        movie: "movie"
+    filename:
+        user: "avatar"
+        series: "poster"
+        movie: "poster"
+
+validation:
+    anchored_fields:
+        text_min_length: &text_min_length 3
+        date: &date
+            min_value:
+                year: 1850
+                month: 1
+                day: 1
+        name: &name
+            min_length: *text_min_length
+            max_length: 20
+        bio: &bio
+            min_length: *text_min_length
+            max_length: 500
+        title: &title
+            min_length: *text_min_length
+            max_length: 100
+        descriptions: &descriptions
+            min_length: *text_min_length
+            max_length: 500
+        number: &number
+            max_value: 1000
+    
+    pagination:
+        page:
+            min_value: 1 # should be either 0 or 1
+        page_size:
+                default_value: 100
+                min_value: 1
+                max_value: 1000
+
+    request:
+        search:
+            query:
+                min_length: *text_min_length
+                max_length: 200
+        invalidation:
+            min_length: 10
+            max_length: 100
+        array:
+            max_length: 1000
+        body:
+            max_length_in_kb: 1024
+
+    user:
+        email:
+            min_length: 8
+            max_length: 40
+        password:
+            min_length: 8
+            max_length: 40
+            required_numbers: 2
+            required_lower_letters: 2
+            required_upper_letters: 2
+            required_special_chars: 1
+        first_name: *name
+        last_name: *name
+        bio: *bio
+        birthdate: *date
+    
+    film:
+        title: *title
+        descriptions: *descriptions
+        date_released: *date
+        duration:
+            min_length: 60
+            max_length: 100000
+        episode_number: *number
+        season_number: *number
+
+    series:
+        title: *title
+        descriptions: *descriptions
+        date_started: *date
+        date_ended: *date

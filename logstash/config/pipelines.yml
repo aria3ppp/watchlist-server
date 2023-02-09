@@ -1,0 +1,5 @@
+- pipeline.id: sync-movies-pipeline
+  path.config: "/usr/share/logstash/pipeline/sync-movies.conf"
+
+- pipeline.id: sync-serieses-pipeline
+  path.config: "/usr/share/logstash/pipeline/sync-serieses.conf"

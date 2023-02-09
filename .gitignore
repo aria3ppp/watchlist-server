@@ -1,0 +1,8 @@
+/.vscode/
+
+/coverage.out
+/coverage-all.out
+
+/.env
+
+/server
