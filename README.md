@@ -4,6 +4,7 @@ Watchlist provides a convenient way for users to manage a list of movies and epi
 
 [![Tests](https://github.com/aria3ppp/watchlist-server/actions/workflows/tests.yml/badge.svg)](https://github.com/aria3ppp/watchlist-server/actions/workflows/tests.yml)
 [![Coverage Status](https://coveralls.io/repos/github/aria3ppp/watchlist-server/badge.svg?branch=master)](https://coveralls.io/github/aria3ppp/watchlist-server?branch=master)
+[![Lint](https://github.com/aria3ppp/watchlist-server/actions/workflows/lint.yml/badge.svg)](https://github.com/aria3ppp/watchlist-server/actions/workflows/lint.yml)
 
 ## Code Architecture
 The Watchlist API is developed in Go language and leverages the Echo router. It follows a modular, three-layer architecture with Transport, Application, and Repository layers. This design ensures single responsibility, better scalability and efficient data storage through the Repository pattern. The code is thoroughly tested with gomock and has comprehensive integration and end-to-end tests to guarantee seamless integration of third-party services and a fully functional API.
