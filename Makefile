@@ -4,6 +4,7 @@ include $(ENVFILE)
 export
 
 MIGRATE_DSN ?= "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
+# As test-models target depend on migrate command, use the docker one-liner run command instead
 # MIGRATE := migrate -path=migrations -database "$(MIGRATE_DSN)"
 MIGRATE := docker run --rm -v $(shell pwd)/migrations:/migrations --user "$(shell id -u):$(shell id -g)" --network host migrate/migrate -path=/migrations -database "$(MIGRATE_DSN)"
 

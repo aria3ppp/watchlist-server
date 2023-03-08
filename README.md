@@ -41,6 +41,4 @@ make services-up && make test-all-cover
 
 Now the local api documentation is available at [http://localhost:8080/v1/openapi](http://localhost:8080/v1/openapi).
 
-The api documentation is also available to read for everyone at [http://aria3ppp.ir:8080/v1/openapi](http://aria3ppp.ir:8080/v1/openapi).
-
-OAS3.0 openapi specs: [http://aria3ppp.ir:8080/v1/openapi/openapi.json](http://aria3ppp.ir:8080/v1/openapi/openapi.json).
+And OAS3.0 openapi specs is available at [http://localhost:8080/v1/openapi/openapi.json](http://localhost:8080/v1/openapi/openapi.json).
