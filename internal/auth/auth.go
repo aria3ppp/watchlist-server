@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 //go:generate mockgen -destination mock_auth/mock_auth.go . Interface
@@ -72,7 +72,7 @@ func (auth *Auth) GenerateJwtToken(
 
 func (auth *Auth) GenerateRefreshToken() (token string, expiresAt time.Time, err error) {
 	// generate a UUIDv4
-	uuid, err := uuid.NewV4()
+	uuid, err := uuid.NewRandom()
 	if err != nil {
 		return "", time.Time{}, err
 	}
